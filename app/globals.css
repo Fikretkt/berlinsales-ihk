@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-status-gruen: #22c55e;
+  --color-status-blau: #3b82f6;
+  --color-status-gelb: #eab308;
+  --color-status-orange: #f97316;
+  --color-status-rosa: #ec4899;
+  --color-status-rot: #ef4444;
+  --color-status-grau: #6b7280;
+}
+
+html,
+body {
+  height: 100%;
+  background: white;
+  color: #111827;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}

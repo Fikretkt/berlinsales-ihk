@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>MarktSync — Demo-Cheatsheet</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #1a1a1a;
+        line-height: 1.45;
+        font-size: 11pt;
+        margin: 0;
+        padding: 20px;
+        max-width: 820px;
+      }
+      h1 { font-size: 20pt; margin: 0 0 4px; color: #15803d; }
+      h2 {
+        font-size: 13pt;
+        margin: 18px 0 6px;
+        padding-bottom: 3px;
+        border-bottom: 2px solid #15803d;
+        color: #15803d;
+      }
+      h3 { font-size: 11pt; margin: 12px 0 4px; color: #333; }
+      p, li { margin: 3px 0; }
+      ul { padding-left: 20px; margin: 4px 0; }
+      .subtitle { color: #666; font-size: 10pt; margin-bottom: 12px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .box {
+        border: 1px solid #d4d4d8;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #fafafa;
+        page-break-inside: avoid;
+      }
+      .box.green { border-color: #86efac; background: #f0fdf4; }
+      .box.blue { border-color: #93c5fd; background: #eff6ff; }
+      .box.amber { border-color: #fcd34d; background: #fffbeb; }
+      table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+      th, td {
+        text-align: left;
+        padding: 4px 6px;
+        border-bottom: 1px solid #e4e4e7;
+        font-size: 10pt;
+        vertical-align: top;
+      }
+      th { background: #f4f4f5; font-weight: 600; }
+      code {
+        background: #f4f4f5;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 9.5pt;
+      }
+      .step {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        margin: 4px 0;
+      }
+      .step-num {
+        flex: 0 0 22px;
+        height: 22px;
+        background: #15803d;
+        color: white;
+        border-radius: 50%;
+        text-align: center;
+        font-weight: 600;
+        font-size: 10pt;
+        line-height: 22px;
+      }
+      .pitch {
+        font-style: italic;
+        background: #fef3c7;
+        padding: 8px 10px;
+        border-left: 3px solid #f59e0b;
+        border-radius: 3px;
+        margin: 6px 0;
+      }
+      .nowrap { white-space: nowrap; }
+      .pagebreak { page-break-before: always; }
+      @media print {
+        body { padding: 0; }
+        .no-print { display: none; }
+      }
+      .no-print {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #15803d;
+        color: white;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 10pt;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print">Strg+P → „Als PDF speichern"</div>
+
+    <h1>MarktSync — Demo-Cheatsheet</h1>
+    <p class="subtitle">Spickzettel für den Office-Termin · 23.05.2026</p>
+
+    <h2>Demo-Login-Daten</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Rolle</th>
+          <th>E-Mail</th>
+          <th>Passwort</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Admin (du)</td>
+          <td><code>admin@demo.de</code></td>
+          <td><code>admin123</code></td>
+        </tr>
+        <tr>
+          <td>Mitarbeiter 1</td>
+          <td><code>mitarbeiter1@demo.de</code></td>
+          <td><code>123456</code></td>
+        </tr>
+        <tr>
+          <td>Mitarbeiter 2</td>
+          <td><code>mitarbeiter2@demo.de</code></td>
+          <td><code>123456</code></td>
+        </tr>
+        <tr>
+          <td>Mitarbeiter 3</td>
+          <td><code>mitarbeiter3@demo.de</code></td>
+          <td><code>123456</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Demo-Ablauf (15 Min)</h2>
+    <div class="step"><span class="step-num">1</span><div><b>Login auf 3 Handys</b> mit den 3 Mitarbeiter-Accounts. Karte mit Markern lädt.</div></div>
+    <div class="step"><span class="step-num">2</span><div><b>Du am Laptop:</b> Login als Admin → landest direkt auf <b>Dashboard</b> mit Mitarbeiter-Übersicht + Live-Feed.</div></div>
+    <div class="step"><span class="step-num">3</span><div><b>Mitarbeiter 1</b> wählt einen Markt auf der Karte → <b>reserviert</b> ihn (blauer Marker).</div></div>
+    <div class="step"><span class="step-num">4</span><div><b>Mitarbeiter 2 & 3</b> sehen binnen 4 Sek. dass der Markt blau wurde — ohne Refresh!</div></div>
+    <div class="step"><span class="step-num">5</span><div><b>Mitarbeiter 1</b> macht eine Aktion (Besuch → erfolgreich). Markt wird gelb, Reservierung weg, Cooldown läuft.</div></div>
+    <div class="step"><span class="step-num">6</span><div><b>Dein Admin-Dashboard</b> aktualisiert: Aktions-Counter +1, Live-Feed zeigt: „Mitarbeiter 1 hat Besuch erfolgreich bei … gemacht".</div></div>
+    <div class="step"><span class="step-num">7</span><div><b>Offline-Test:</b> Mitarbeiter 3 Flugmodus an, Aktion machen → wird gespeichert. Flugmodus aus → wird automatisch synchronisiert.</div></div>
+    <div class="step"><span class="step-num">8</span><div><b>Admin-Bereich zeigen:</b> Audit-Log (rechtssicher), Reporting (Wochenübersicht), Konflikt-Inbox, Cooldown-Konfiguration.</div></div>
+
+    <h2>Was die App kann (3 Stärken)</h2>
+    <div class="grid">
+      <div class="box green">
+        <h3>1. Sofortige Übersicht</h3>
+        Dashboard zeigt live wer was heute gemacht hat — keine Telefonate, keine Excel-Listen mehr.
+      </div>
+      <div class="box blue">
+        <h3>2. Weniger Aufwand</h3>
+        Mitarbeiter tippen statt anrufen. Funktioniert auch ohne Netz im Markt (Offline-Modus).
+      </div>
+      <div class="box amber">
+        <h3>3. Rechtssicherer Audit-Trail</h3>
+        Wer hat was wann gemacht — automatisch dokumentiert, DSGVO-konform, 5 Jahre revisionssicher.
+      </div>
+    </div>
+
+    <h2>Fragen die du stellst</h2>
+
+    <h3>Pilot-Bereitschaft</h3>
+    <ul>
+      <li>Mit wie vielen Mitarbeitern wollt ihr starten?</li>
+      <li>Wie viele Märkte habt ihr aktuell aktiv? Sind die 693 (Edeka + REWE Berlin/Brandenburg) okay?</li>
+      <li>Wann wollt ihr loslegen — diese Woche, nächste Woche, in 4 Wochen?</li>
+    </ul>
+
+    <h3>Anpassungswünsche</h3>
+    <ul>
+      <li>Welche Funktion fehlt euch beim Anschauen?</li>
+      <li>Sind die Cooldown-Zeiten passend oder zu kurz/lang?</li>
+      <li>Was macht ihr aktuell ohne App — Excel, WhatsApp, Telefon? Was davon soll wegfallen?</li>
+    </ul>
+
+    <h3>Kommerzielles (wichtig!)</h3>
+    <ul>
+      <li>Wie wollt ihr abrechnen — pro Mitarbeiter pro Monat? Einmalige Lizenz + Wartung?</li>
+      <li>Wer bezahlt das Hosting (~30 €/Monat) — ihr oder ich, und ich rechne durch?</li>
+      <li>Wer ist mein Ansprechpartner für Wünsche und Fehler nach dem Go-Live?</li>
+    </ul>
+
+    <h3>Schlussfrage</h3>
+    <div class="pitch">„Wenn alles wie heute klappt — würdet ihr mit dem Pilot Anfang Juni starten?"</div>
+
+    <div class="pagebreak"></div>
+
+    <h2>Wenn sie fragen: „Wie gehen wir online?"</h2>
+    <div class="pitch">
+      „Hosting läuft auf einem deutschen Anbieter — Hetzner in Falkenstein. Vollständig DSGVO-konform,
+      eure Daten verlassen Deutschland nicht. Setup-Zeit: 2 Tage. Laufende Kosten ca. 30 € pro Monat
+      für Server + Datenbank + Backups. Das ist die echte Infrastruktur — schneller als der Demo-Tunnel
+      den ihr gerade nutzt. Live-Updates kommen dann sofort statt alle 3 Sekunden."
+    </div>
+
+    <h2>Antworten auf typische Einwände</h2>
+
+    <h3>„Wie sieht es mit Datenschutz aus?"</h3>
+    <ul>
+      <li>DSGVO-konform — deutsches Hosting, deutscher Anbieter</li>
+      <li>Mitarbeiter-Daten gespeichert: Name, E-Mail, ihre Aktionen</li>
+      <li>Geo-Standorte werden nach 90 Tagen automatisch anonymisiert</li>
+      <li>Tägliche Backups, Point-in-Time-Recovery (jeder Zeitpunkt der letzten Woche wiederherstellbar)</li>
+      <li>Audit-Log dokumentiert wer was wann gemacht hat — rechtssicher</li>
+    </ul>
+
+    <h3>„Was wenn die App ausfällt?"</h3>
+    <ul>
+      <li><b>Offline-Modus eingebaut</b> — Mitarbeiter arbeiten weiter ohne Netz, App synchronisiert nachträglich</li>
+      <li>Monitoring auf dem Server — bei Problem werde ich automatisch alarmiert</li>
+      <li>Stündliche Backups, ich kann den Stand der letzten Stunde wiederherstellen</li>
+    </ul>
+
+    <h3>„Was wenn wir wachsen?"</h3>
+    <ul>
+      <li>Aktuell für 50–100 Mitarbeiter ausgelegt</li>
+      <li>Kann auf 500+ skaliert werden ohne Code-Änderung — nur Server hochstufen</li>
+      <li>Wenn ihr mehrere Städte/Regionen macht: ist dafür ausgelegt</li>
+    </ul>
+
+    <h3>„Können Mitarbeiter sehen wer was gemacht hat?"</h3>
+    <ul>
+      <li>Nur kontextbezogen am Markt (Aktivitäts-Historie pro Markt mit Namen)</li>
+      <li>Kein Personen-Ranking, kein Leaderboard — das wäre demotivierend</li>
+      <li>Das Mitarbeiter-Dashboard ist nur für Sie als Chef</li>
+    </ul>
+
+    <h3>„Können wir das selbst betreuen ohne dich?"</h3>
+    <ul>
+      <li>Hosting ja, Server-Verwaltung könnt ihr übernehmen oder ich mache es als Service</li>
+      <li>Empfehlung: Wartungsvertrag — ich kümmere mich um Updates, Backups, Notfälle</li>
+    </ul>
+
+    <h2>Falls technische Probleme während Demo</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Lösung</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Handy lädt nicht</td>
+          <td>Browser-Cache leeren oder Incognito-Tab. Anderer Browser probieren.</td>
+        </tr>
+        <tr>
+          <td>Login geht nicht</td>
+          <td>URL stimmt? Passwort genau wie auf dem Zettel?</td>
+        </tr>
+        <tr>
+          <td>Karte zeigt keine Marker</td>
+          <td>Kurz warten (5 Sek beim ersten Aufruf), dann F5.</td>
+        </tr>
+        <tr>
+          <td>Aktion klappt nicht</td>
+          <td>Standort-Berechtigung im Handy erlauben. HTTPS muss aktiv sein.</td>
+        </tr>
+        <tr>
+          <td>Tunnel-URL „gestorben"</td>
+          <td>Nachschauen ob cloudflared-Fenster am Laptop noch läuft. Neue URL → AUTH_URL anpassen → pnpm dev neu.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Demo-URL (für den Termin eintragen)</h2>
+    <div class="box">
+      <code style="font-size: 14pt;">https://_______________________________________________.trycloudflare.com</code>
+    </div>
+  </body>
+</html>
