@@ -6,23 +6,34 @@ import * as schema from "./schema";
 const { Pool } = pg;
 
 declare global {
-  var __marktsyncPool: pg.Pool | undefined;
+  var __erstePool: pg.Pool | undefined;
+  var __zweitePool: pg.Pool | undefined;
 }
 
-function getPool(): pg.Pool {
-  if (global.__marktsyncPool) return global.__marktsyncPool;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
+function getErstePool(): pg.Pool {
+  if (global.__erstePool) return global.__erstePool;
+  const url = process.env.DATABASE_URL_ERSTE;
+  if (!url) throw new Error("DATABASE_URL_ERSTE is not set");
   const pool = new Pool({ connectionString: url, max: 10 });
-  // A process-wide pool is required in every environment. Creating one per
-  // Proxy property access in production leaks connections under normal load.
-  global.__marktsyncPool = pool;
+  global.__erstePool = pool;
   return pool;
 }
 
-export const pool = new Proxy({} as pg.Pool, {
+function getZweitePool(): pg.Pool {
+  if (global.__zweitePool) return global.__zweitePool;
+  const url = process.env.DATABASE_URL_ZWEITE;
+  if (!url) {
+    throw new Error("DATABASE_URL_ZWEITE is not set");
+  }
+  const pool = new Pool({ connectionString: url, max: 10 });
+  global.__zweitePool = pool;
+  return pool;
+}
+
+
+export const erstePool = new Proxy({} as pg.Pool, {
   get(_target, prop, receiver) {
-    const target = getPool();
+    const target = getErstePool();
     const value = Reflect.get(target, prop, receiver);
     if (typeof value === "function") {
       return value.bind(target);
@@ -30,5 +41,20 @@ export const pool = new Proxy({} as pg.Pool, {
     return value;
   },
 });
-export const db = drizzle(pool, { schema, casing: "snake_case" });
+
+export const zweitePool = new Proxy({} as pg.Pool, {
+  get(_target, prop, receiver) {
+    const target = getZweitePool();
+    const value = Reflect.get(target, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(target);
+    }
+    return value;
+  },
+});
+export const ersteDb = drizzle(erstePool, { schema, casing: "snake_case" });
+export const zweiteDb = drizzle(zweitePool, { schema, casing: "snake_case" });
+
+export const pool = erstePool;
+export const db = ersteDb;
 export type DbClient = typeof db;
