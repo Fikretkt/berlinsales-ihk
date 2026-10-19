@@ -11,6 +11,10 @@ jobs:
   quality:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL_ERSTE: postgresql://test:test@127.0.0.1:5432/test_erste
+      DATABASE_URL_ZWEITE: postgresql://test:test@127.0.0.1:5432/test_zweite
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,8 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-
       - name: Enable Corepack
         run: corepack enable
 
@@ -34,11 +36,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Build
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/itmart_build
         run: pnpm build
 
       - name: Test
-        env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test
         run: pnpm test

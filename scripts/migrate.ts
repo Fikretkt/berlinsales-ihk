@@ -8,7 +8,7 @@
 
 import { config } from "dotenv";
 config({ path: ".env" });
-config({ path: ".env.local", override: false });
+config({ path: ".env.local", override: true });
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
@@ -18,8 +18,17 @@ const { Pool } = pg;
 const MIGRATIONS_DIR = path.resolve("lib/db/migrations");
 
 async function main() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required. Copy .env.example to .env for local development.");
+  const targetName = process.argv[2];
+  let url: string | undefined;
+  if (targetName === "erste") {
+    url = process.env.DATABASE_URL_ERSTE;
+  }
+  if (targetName === "zweite") {
+    url = process.env.DATABASE_URL_ZWEITE;
+  }
+  if (!url) {
+    throw new Error("Bitte 'erste' oder 'zweite' als Datenbank eingeben.");
+  }
   const target = new URL(url);
   console.log(`Connecting to PostgreSQL at ${target.hostname}:${target.port || "5432"}/${target.pathname.slice(1)}`);
 

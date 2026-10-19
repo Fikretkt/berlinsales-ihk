@@ -33,7 +33,7 @@ export async function startTestDatabase(): Promise<TestContext> {
 
   const pool = new Pool({ connectionString: container.getConnectionUri() });
   process.env.DATABASE_URL = container.getConnectionUri();
-  global.__marktsyncPool = pool;
+  global.__erstePool = pool;
 
   // Extensions zuerst (wie scripts/migrate.ts)
   await pool.query(`
@@ -56,8 +56,8 @@ export async function startTestDatabase(): Promise<TestContext> {
 }
 
 export async function stopTestDatabase(ctx: TestContext): Promise<void> {
-  if (global.__marktsyncPool === ctx.pool) {
-    global.__marktsyncPool = undefined;
+  if (global.__erstePool === ctx.pool) {
+    global.__erstePool = undefined;
   }
   await ctx.pool.end();
   await ctx.container.stop();
