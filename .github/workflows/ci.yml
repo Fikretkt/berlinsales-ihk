@@ -11,6 +11,10 @@ jobs:
   quality:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL_ERSTE: postgresql://test:test@127.0.0.1:5432/test_erste
+      DATABASE_URL_ZWEITE: postgresql://test:test@127.0.0.1:5432/test_zweite
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,13 +36,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Build
-        env:
-          DATABASE_URL_ERSTE: postgresql://postgres:postgres@localhost:5432/itmart_erste
-          DATABASE_URL_ZWEITE: postgresql://postgres:postgres@localhost:5432/itmart_zweite
         run: pnpm build
 
       - name: Test
-        env:
-          DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test_erste
-          DATABASE_URL_ZWEITE: postgresql://test:test@127.0.0.1:5432/test_zweite
         run: pnpm test
