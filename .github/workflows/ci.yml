@@ -14,6 +14,8 @@ jobs:
     env:
       DATABASE_URL_ERSTE: postgresql://test:test@127.0.0.1:5432/test_erste
       DATABASE_URL_ZWEITE: postgresql://test:test@127.0.0.1:5432/test_zweite
+      APP_INTERNAL_HOST: internal.localhost
+      APP_EXTERNAL_HOST: external.localhost
 
     steps:
       - name: Checkout
