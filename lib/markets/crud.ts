@@ -1,7 +1,7 @@
 // Markt-CRUD-Operationen (Anlegen, Bearbeiten, Deaktivieren, Reaktivieren, Mergen).
 
 import { sql, eq, and, ne, isNull } from "drizzle-orm";
-import { db, pool } from "@/lib/db/client";
+import { db, pool, type DbClient} from "@/lib/db/client";
 import {
   market as marketTable,
   user as userTable,
@@ -60,16 +60,14 @@ function mapPgError(err: unknown, fallbackMessage: string): never {
   throw err;
 }
 
-// =============================================================================
-// CREATE
-// =============================================================================
 export async function createMarket(
   input: CreateMarketInput,
   user: SessionUser,
+  requestDb: DbClient = db,
 ): Promise<CreateMarketResult> {
   // Chain existiert?
   if (input.chainId) {
-    const chainRows = await db
+    const chainRows = await requestDb
       .select({ id: chainTable.id })
       .from(chainTable)
       .where(eq(chainTable.id, input.chainId))
@@ -81,12 +79,11 @@ export async function createMarket(
     }
   }
 
-  // Zuweisung prüfen
   if (input.assignedUserId) {
     if (user.role !== "admin") {
       throw new HttpError(403, "ADMIN_ONLY", "Nur Administratoren können Kunden zuweisen");
     }
-    const assignedUserRows = await db
+    const assignedUserRows = await requestDb
       .select({ id: userTable.id })
       .from(userTable)
       .where(
@@ -106,9 +103,8 @@ export async function createMarket(
     }
   }
 
-  // Trigram-Suche nach ähnlichen Namen (gleicher Postal-Code-Bezirk)
   const similarResult = input.postalCode
-    ? await db.execute<SimilarMarket & { [k: string]: unknown }>(sql`
+    ? await requestDb.execute<SimilarMarket & { [k: string]: unknown }>(sql`
     SELECT
       id,
       name,
@@ -133,7 +129,7 @@ export async function createMarket(
 
   let marketId: string;
   try {
-    const res = await db
+    const res = await requestDb
       .insert(marketTable)
       .values({
         companyId: user.companyId,
@@ -159,7 +155,7 @@ export async function createMarket(
     mapPgError(err, "Markt-Daten ungültig");
   }
 
-  await db.insert(auditLog).values({
+  await requestDb.insert(auditLog).values({
     companyId: user.companyId,
     userId: user.id,
     event: AUDIT_EVENTS.MARKET_CREATED,
@@ -177,9 +173,6 @@ export async function createMarket(
   };
 }
 
-// =============================================================================
-// UPDATE
-// =============================================================================
 export interface UpdateMarketInput {
   name?: string;
   chainId?: string;
@@ -200,8 +193,9 @@ export async function updateMarket(
   id: string,
   input: UpdateMarketInput,
   user: SessionUser,
+  requestDb: DbClient = db,
 ): Promise<void> {
-  const existing = await db
+  const existing = await requestDb
     .select({ id: marketTable.id, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
     .where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)))
@@ -250,7 +244,7 @@ export async function updateMarket(
 
   if (input.assignedUserId !== undefined) {
     if (input.assignedUserId !== null) {
-      const assignedUserRows = await db
+      const assignedUserRows = await requestDb
         .select({ id: userTable.id })
         .from(userTable)
         .where(
@@ -282,7 +276,7 @@ export async function updateMarket(
   if (Object.keys(updates).length === 0) return;
 
   try {
-    await db
+    await requestDb
       .update(marketTable)
       .set(updates)
       .where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)));
@@ -290,7 +284,7 @@ export async function updateMarket(
     mapPgError(err, "Markt-Daten ungültig");
   }
 
-  await db.insert(auditLog).values({
+  await requestDb.insert(auditLog).values({
     companyId: user.companyId,
     userId: user.id,
     event: AUDIT_EVENTS.MARKET_UPDATED,
@@ -313,11 +307,8 @@ export async function updateMarket(
   notifyMarketUpdated(id, "_metadata_changed").catch(() => {});
 }
 
-// =============================================================================
-// DEACTIVATE / REACTIVATE
-// =============================================================================
-export async function deactivateMarket(id: string, user: SessionUser): Promise<void> {
-  const rows = await db
+export async function deactivateMarket(id: string, user: SessionUser, requestDb: DbClient = db): Promise<void> {
+  const rows = await requestDb
     .select({ active: marketTable.active, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
     .where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)))
@@ -328,7 +319,7 @@ export async function deactivateMarket(id: string, user: SessionUser): Promise<v
     throw new HttpError(409, "MARKET_MERGED", "Markt wurde zusammengeführt");
   if (!rows[0]!.active) return;
 
-  await db.transaction(async (tx) => {
+  await requestDb.transaction(async (tx) => {
     await tx.update(marketTable).set({ active: false }).where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)));
     // Aktive Reservierungen aufheben
     await tx
@@ -349,8 +340,8 @@ export async function deactivateMarket(id: string, user: SessionUser): Promise<v
   notifyMarketUpdated(id, "grau").catch(() => {});
 }
 
-export async function reactivateMarket(id: string, user: SessionUser): Promise<void> {
-  const rows = await db
+export async function reactivateMarket(id: string, user: SessionUser, requestDb: DbClient = db): Promise<void> {
+  const rows = await requestDb
     .select({ active: marketTable.active, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
     .where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)))
@@ -361,7 +352,7 @@ export async function reactivateMarket(id: string, user: SessionUser): Promise<v
     throw new HttpError(409, "MARKET_MERGED", "Markt wurde zusammengeführt");
   if (rows[0]!.active) return;
 
-  await db.transaction(async (tx) => {
+  await requestDb.transaction(async (tx) => {
     await tx.update(marketTable).set({ active: true }).where(and(eq(marketTable.id, id), eq(marketTable.companyId, user.companyId)));
     await tx.insert(auditLog).values({
       companyId: user.companyId,
@@ -373,9 +364,6 @@ export async function reactivateMarket(id: string, user: SessionUser): Promise<v
   notifyMarketUpdated(id, "_reactivated").catch(() => {});
 }
 
-// =============================================================================
-// MERGE
-// =============================================================================
 export interface MergeResult {
   notesMoved: number;
   actionsMoved: number;
@@ -386,13 +374,13 @@ export async function mergeMarkets(
   primaryId: string,
   duplicateId: string,
   user: SessionUser,
+  requestDb: DbClient = db,
 ): Promise<MergeResult> {
   if (primaryId === duplicateId) {
     throw new HttpError(400, "VALIDATION_FAILED", "Primary und Duplikat müssen unterschiedlich sein");
   }
 
-  // Beide existieren + nicht gemergt
-  const rows = await db
+  const rows = await requestDb
     .select({ id: marketTable.id, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
     .where(sql`${marketTable.id} = ANY(ARRAY[${primaryId}::uuid, ${duplicateId}::uuid]) AND ${marketTable.companyId} = ${user.companyId}::uuid`);
@@ -411,7 +399,6 @@ export async function mergeMarkets(
     reservationsCancelled: 0,
   };
 
-  // Beide Locks in sortierter Reihenfolge (deadlock-vermeidung)
   const sorted = [primaryId, duplicateId].sort();
   const client = await PG.connect();
   try {
@@ -468,15 +455,11 @@ export async function mergeMarkets(
     client.release();
   }
 
-  // Beide Märkte updaten
   notifyMarketsBulkUpdated([primaryId, duplicateId]).catch(() => {});
 
   return result;
 }
 
-// =============================================================================
-// Markt-Liste auch inaktive (für Admin-Übersicht)
-// =============================================================================
 export interface AdminMarketListItem {
   id: string;
   name: string;
@@ -497,7 +480,7 @@ export async function listAdminMarkets(companyId: string, opts: {
   includeInactive?: boolean;
   limit?: number;
   offset?: number;
-}): Promise<{ items: AdminMarketListItem[]; total: number }> {
+}, requestDb: DbClient = db): Promise<{ items: AdminMarketListItem[]; total: number }> {
   const limit = Math.min(opts.limit ?? 50, 200);
   const offset = opts.offset ?? 0;
 
@@ -511,7 +494,7 @@ export async function listAdminMarkets(companyId: string, opts: {
   }
   const where = conditions.length ? sql`WHERE ${sql.join(conditions, sql` AND `)}` : sql``;
 
-  const result = await db.execute<AdminMarketListItem & { [k: string]: unknown }>(sql`
+  const result = await requestDb.execute<AdminMarketListItem & { [k: string]: unknown }>(sql`
     SELECT
       m.id, m.name, m.gln,
       c.name AS "chainName",
@@ -528,7 +511,7 @@ export async function listAdminMarkets(companyId: string, opts: {
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  const totalResult = await db.execute<{ count: string }>(sql`
+  const totalResult = await requestDb.execute<{ count: string }>(sql`
     SELECT COUNT(*)::text AS count FROM market m ${where}
   `);
   const total = parseInt(totalResult.rows[0]?.count ?? "0", 10);
@@ -552,9 +535,8 @@ export async function listAdminMarkets(companyId: string, opts: {
   };
 }
 
-// Hilfs-Aktion für UI: Liste aller Ketten
-export async function listChains(): Promise<{ id: string; name: string }[]> {
-  const rows = await db
+export async function listChains(requestDb: DbClient = db): Promise<{ id: string; name: string }[]> {
+  const rows = await requestDb
     .select({ id: chainTable.id, name: chainTable.name })
     .from(chainTable)
     .where(eq(chainTable.active, true))
@@ -562,7 +544,6 @@ export async function listChains(): Promise<{ id: string; name: string }[]> {
   return rows;
 }
 
-// silence unused for cross-tx imports
 void noteTable;
 void actionTable;
 void ne;
