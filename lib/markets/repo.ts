@@ -2,7 +2,7 @@
 // Cursor-Pagination via base64-encoded (created_at, id).
 
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { db, type DbClient } from "@/lib/db/client";
 import type { SalesStage, CurrentSolution, CustomerSatisfaction } from "@/lib/db/schema";
 
 export interface MarketListItem {
@@ -94,8 +94,6 @@ function decodeCursor(s: string): Cursor | null {
   }
 }
 
-// Computed-Status-CASE wird hier dupliziert (statt View) damit wir alles in einem
-// Query haben und auf computed_status filtern können (Views sind oft nicht filter-effizient).
 const COMPUTED_STATUS_SQL = sql`
   CASE
     WHEN m.active = FALSE THEN 'grau'::market_status
@@ -238,12 +236,11 @@ export async function listMarkets(
   companyId: string,
   userId: string,
   filters: MarketListFilters,
+  requestDb: DbClient = db,
 ): Promise<{ items: MarketListItem[]; nextCursor: string | null }> {
   const limit = Math.min(filters.limit ?? 50, 200);
   const cursor = filters.cursor ? decodeCursor(filters.cursor) : null;
 
-  // Wir bauen den Query manuell als raw SQL für volle Kontrolle.
-  // Drizzle's QueryBuilder kann CASE in WHERE etwas umständlich.
   const conditions = marketConditions(companyId, userId, filters);
   if (cursor) {
     conditions.push(
@@ -253,7 +250,7 @@ export async function listMarkets(
 
   const whereClause = sql.join(conditions, sql` AND `);
 
-  const result = await db.execute<RawListRow>(sql`
+  const result = await requestDb.execute<RawListRow>(sql`
     SELECT
       m.id, m.name, m.gln,
       m.chain_id, c.name AS chain_name,
@@ -329,9 +326,6 @@ export async function listMarkets(
   return { items, nextCursor };
 }
 
-// =============================================================================
-// Detail
-// =============================================================================
 export interface MarketDetail extends MarketListItem {
   contactPerson: string | null;
   contactEmail: string | null;

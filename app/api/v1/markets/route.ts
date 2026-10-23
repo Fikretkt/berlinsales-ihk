@@ -1,10 +1,7 @@
-// GET /api/v1/markets — Liste (alle User)
-// POST /api/v1/markets — Markt anlegen (alle eingeloggten User mit Dubletten-Warnung)
-
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
 import { user as userTable } from "@/lib/db/schema";
 import { listMarkets } from "@/lib/markets/repo";
 import { createMarket } from "@/lib/markets/crud";
@@ -39,8 +36,16 @@ const querySchema = z.object({
 
 export async function GET(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
-
+    const host = req.headers.get("host");
+    if (!host) {
+      throw new HttpError(
+        400,
+        "HOST_REQUIRED",
+        "Host fehlt",
+      );
+    }
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const parsed = querySchema.safeParse(
       Object.fromEntries(req.nextUrl.searchParams),
     );
@@ -58,7 +63,7 @@ export async function GET(req: NextRequest) {
           "Filter nach beliebigen Mitarbeitern ist nur Admins erlaubt",
         );
       }
-      const targetUserRows = await db
+      const targetUserRows = await requestDb
         .select({ id: userTable.id })
         .from(userTable)
         .where(
@@ -101,18 +106,21 @@ export async function GET(req: NextRequest) {
       assignedUserId: parsed.data.assigned_user_id,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,
-    });
+    },
+    requestDb,
+  );
 
     return ok({ items: result.items, next_cursor: result.nextCursor });
   });
 }
 
-// =============================================================================
-// POST: Markt anlegen
-// =============================================================================
 export async function POST(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+    if (!host) {throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+}
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const body = await req.json().catch(() => null);
     const parsed = marketCreateRequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -139,6 +147,7 @@ export async function POST(req: NextRequest) {
         satisfaction: parsed.data.satisfaction,
       },
       user,
+      requestDb,
     );
     return ok(
       {
