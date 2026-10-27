@@ -12,6 +12,7 @@ import { db } from "@/lib/db/client";
 import { user as userTable } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { authConfig } from "@/auth.config";
+import { hostBereich, hostDbAuswahl } from "@/lib/db/dbAuswahl";
 
 const credentialsSchema = z.object({
   email: z.string().email().toLowerCase(),
@@ -26,12 +27,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: {},
         password: {},
       },
-      async authorize(credentials): Promise<AuthUser | null> {
+      async authorize(credentials, request): Promise<AuthUser | null> {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
-
-        const rows = await db
+        
+        const host = request.headers.get("host");
+        if (!host) return null;
+        const bereich = hostBereich(host);
+        const requestDb = hostDbAuswahl(host);
+        const rows = await requestDb
           .select({
             id: userTable.id,
             email: userTable.email,
@@ -51,7 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!ok) return null;
 
         // last_login_at aktualisieren (best-effort, kein Fail bei DB-Fehler)
-        db.update(userTable)
+        await requestDb.update(userTable)
           .set({ lastLoginAt: new Date() })
           .where(eq(userTable.id, u.id))
           .catch(() => {});
@@ -62,7 +67,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: u.name,
           role: u.role,
           companyId: u.companyId,
-        } as AuthUser;
+          bereich,
+        } as AuthUser & {bereich: "internal" | "external"};
       },
     }),
   ],

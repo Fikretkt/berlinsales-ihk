@@ -25,7 +25,15 @@ import { HttpError } from "@/lib/http/errors";
 describe("getSessionUser & Session Hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockHeaders.mockResolvedValue(new Headers());
+
+    process.env.APP_HOST_INTERNAL = "internal.localhost";
+    process.env.APP_HOST_EXTERNAL = "external.localhost";
+
+    mockHeaders.mockResolvedValue(
+      new Headers({
+        host: "internal.localhost",
+      }),
+    );
   });
 
   const validUserId = "11111111-1111-4111-8111-111111111111";
