@@ -12,6 +12,20 @@ vi.mock("next/headers", () => ({
   headers: () => mockHeaders(),
 }));
 
+vi.mock("@/lib/db/dbAuswahl", () => ({
+  hostBereich: (host: string) => {
+    if (host === "internal.localhost") {
+      return "internal";
+    }
+
+    if (host === "external.localhost") {
+      return "external";
+    }
+
+    throw new Error(`Unbekannter Host: ${host}`);
+  },
+}));
+
 vi.mock("@/lib/db/client", () => ({
   db: {
     select: () => mockSelect(),
@@ -25,7 +39,12 @@ import { HttpError } from "@/lib/http/errors";
 describe("getSessionUser & Session Hardening", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockHeaders.mockResolvedValue(new Headers());
+
+    mockHeaders.mockResolvedValue(
+      new Headers({
+        host: "internal.localhost",
+      }),
+    );
   });
 
   const validUserId = "11111111-1111-4111-8111-111111111111";
@@ -33,7 +52,9 @@ describe("getSessionUser & Session Hardening", () => {
 
   it("returns null when auth() returns null (unauthenticated)", async () => {
     mockAuth.mockResolvedValue(null);
+
     const user = await getSessionUser();
+
     expect(user).toBeNull();
   });
 
@@ -47,35 +68,64 @@ describe("getSessionUser & Session Hardening", () => {
 
   it("returns null and rejects malformed user IDs without querying DB with invalid UUID", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mockAuth.mockResolvedValue({ user: { id: "not-a-valid-uuid" } });
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: "not-a-valid-uuid",
+        bereich: "internal",
+      },
+    });
 
     const user = await getSessionUser();
+
     expect(user).toBeNull();
     expect(mockSelect).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("SESSION_INVALID_USER_ID"));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_INVALID_USER_ID"),
+    );
+
     warnSpy.mockRestore();
   });
 
   it("returns null when user is not found in database (deleted user / stale JWT)", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mockAuth.mockResolvedValue({ user: { id: validUserId } });
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
 
     // Mock Drizzle query returning empty rows
     const mockLimit = vi.fn().mockResolvedValue([]);
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
     const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
     const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-    mockSelect.mockReturnValue({ from: mockFrom });
+
+    mockSelect.mockReturnValue({
+      from: mockFrom,
+    });
 
     const user = await getSessionUser();
+
     expect(user).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("SESSION_USER_NOT_FOUND"));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_USER_NOT_FOUND"),
+    );
+
     warnSpy.mockRestore();
   });
 
   it("returns null when user in database is inactive (deactivated user / stale JWT)", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mockAuth.mockResolvedValue({ user: { id: validUserId } });
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
 
     const mockLimit = vi.fn().mockResolvedValue([
       {
@@ -88,20 +138,34 @@ describe("getSessionUser & Session Hardening", () => {
         companyIdRef: validCompanyId,
       },
     ]);
+
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
     const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
     const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-    mockSelect.mockReturnValue({ from: mockFrom });
+
+    mockSelect.mockReturnValue({
+      from: mockFrom,
+    });
 
     const user = await getSessionUser();
+
     expect(user).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("SESSION_USER_INACTIVE"));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_USER_INACTIVE"),
+    );
+
     warnSpy.mockRestore();
   });
 
   it("returns null when user's tenant/company is missing or invalid in database", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mockAuth.mockResolvedValue({ user: { id: validUserId } });
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
 
     const mockLimit = vi.fn().mockResolvedValue([
       {
@@ -111,22 +175,35 @@ describe("getSessionUser & Session Hardening", () => {
         role: "field_user",
         companyId: validCompanyId,
         active: true,
-        companyIdRef: null, // company left join produced null -> company deleted or missing
+        companyIdRef: null,
       },
     ]);
+
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
     const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
     const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-    mockSelect.mockReturnValue({ from: mockFrom });
+
+    mockSelect.mockReturnValue({
+      from: mockFrom,
+    });
 
     const user = await getSessionUser();
+
     expect(user).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("SESSION_TENANT_INVALID"));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_TENANT_INVALID"),
+    );
+
     warnSpy.mockRestore();
   });
 
   it("returns SessionUser when user is active and belongs to an existing company", async () => {
-    mockAuth.mockResolvedValue({ user: { id: validUserId } });
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
 
     const mockLimit = vi.fn().mockResolvedValue([
       {
@@ -139,48 +216,132 @@ describe("getSessionUser & Session Hardening", () => {
         companyIdRef: validCompanyId,
       },
     ]);
+
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
     const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
     const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-    mockSelect.mockReturnValue({ from: mockFrom });
+
+    mockSelect.mockReturnValue({
+      from: mockFrom,
+    });
 
     const user = await getSessionUser();
+
     expect(user).toEqual({
       id: validUserId,
       email: "alice@example.com",
       name: "Alice",
       role: "admin",
       companyId: validCompanyId,
+      bereich: "internal",
     });
   });
 
-  it("CRITICAL (Amendment 1): propagates infrastructure/database errors without converting to null", async () => {
-    mockAuth.mockResolvedValue({ user: { id: validUserId } });
+  it("interne Session darf nicht externe Host benutzen", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const dbError = new Error("Connection terminated unexpectedly (PostgreSQL outage)");
+    mockHeaders.mockResolvedValue(
+      new Headers({
+        host: "external.localhost",
+      }),
+    );
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
+
+    const user = await getSessionUser();
+
+    expect(user).toBeNull();
+
+    // Bei falsche Bereich soll keine DB Anfrage gemacht werden
+    expect(mockSelect).not.toHaveBeenCalled();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_BEREICH_MISMATCH"),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("externe Session darf nicht interne Host benutzen", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "external",
+      },
+    });
+
+    const user = await getSessionUser();
+
+    expect(user).toBeNull();
+
+    // Bei falsche Bereich soll keine DB Anfrage gemacht werden
+    expect(mockSelect).not.toHaveBeenCalled();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("SESSION_BEREICH_MISMATCH"),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("CRITICAL (Amendment 1): propagates infrastructure/database errors without converting to null", async () => {
+    mockAuth.mockResolvedValue({
+      user: {
+        id: validUserId,
+        bereich: "internal",
+      },
+    });
+
+    const dbError = new Error(
+      "Connection terminated unexpectedly (PostgreSQL outage)",
+    );
+
     const mockLimit = vi.fn().mockRejectedValue(dbError);
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
     const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
     const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-    mockSelect.mockReturnValue({ from: mockFrom });
+
+    mockSelect.mockReturnValue({
+      from: mockFrom,
+    });
 
     // Must NOT return null; must throw the original infrastructure error
-    await expect(getSessionUser()).rejects.toThrow("Connection terminated unexpectedly");
+    await expect(getSessionUser()).rejects.toThrow(
+      "Connection terminated unexpectedly",
+    );
   });
 
   describe("requireUser and requireAdmin guards", () => {
     it("requireUser throws 401 NOT_AUTHENTICATED when getSessionUser returns null", async () => {
       mockAuth.mockResolvedValue(null);
+
       await expect(requireUser()).rejects.toThrowError(HttpError);
+
       try {
         await requireUser();
       } catch (err) {
-        expect(err).toMatchObject({ status: 401, code: "NOT_AUTHENTICATED" });
+        expect(err).toMatchObject({
+          status: 401,
+          code: "NOT_AUTHENTICATED",
+        });
       }
     });
 
     it("requireAdmin throws 403 when user role is not admin", async () => {
-      mockAuth.mockResolvedValue({ user: { id: validUserId } });
+      mockAuth.mockResolvedValue({
+        user: {
+          id: validUserId,
+          bereich: "internal",
+        },
+      });
+
       const mockLimit = vi.fn().mockResolvedValue([
         {
           id: validUserId,
@@ -192,16 +353,24 @@ describe("getSessionUser & Session Hardening", () => {
           companyIdRef: validCompanyId,
         },
       ]);
+
       const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
       const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
       const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
-      mockSelect.mockReturnValue({ from: mockFrom });
+
+      mockSelect.mockReturnValue({
+        from: mockFrom,
+      });
 
       await expect(requireAdmin()).rejects.toThrowError(HttpError);
+
       try {
         await requireAdmin();
       } catch (err) {
-        expect(err).toMatchObject({ status: 403, code: "FIELD_USER_NOT_ALLOWED" });
+        expect(err).toMatchObject({
+          status: 403,
+          code: "FIELD_USER_NOT_ALLOWED",
+        });
       }
     });
   });

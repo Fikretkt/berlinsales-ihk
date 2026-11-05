@@ -8,6 +8,7 @@ const fieldUser: SessionUser = {
   name: "Field",
   role: "field_user",
   companyId: "00000000-0000-0000-0000-000000000010",
+  bereich: "internal",
 };
 const adminUser = { ...fieldUser, role: "admin" as const };
 

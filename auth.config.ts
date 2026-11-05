@@ -26,6 +26,7 @@ export const authConfig = {
         token.userId = (user as { id?: string }).id;
         token.role = (user as { role?: string }).role;
         token.companyId = (user as { companyId?: string }).companyId;
+        token.bereich = (user as { bereich?: "internal" | "external" }).bereich;
       }
       return token;
     },
@@ -39,6 +40,9 @@ export const authConfig = {
         }
         if (typeof token.companyId === "string") {
           (session.user as { companyId?: string }).companyId = token.companyId;
+        }
+        if (token.bereich === "internal" || token.bereich === "external") {
+          (session.user as { bereich?: "internal" | "external" }).bereich = token.bereich;
         }
       }
       return session;

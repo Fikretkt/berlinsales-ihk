@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { company as companyTable, user as userTable } from "@/lib/db/schema";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
 import { assertDevImpersonationAllowed } from "@/lib/auth/dev-impersonation";
+import { hostBereich } from "@/lib/db/dbAuswahl";
 
 export { HttpError };
 export type { SessionUser };
@@ -12,8 +13,19 @@ export type { SessionUser };
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getSessionUser(requestDb: typeof db = db): Promise<SessionUser | null> {
-  const devEmail = (await headers()).get("x-dev-user-email");
+export async function getSessionUser(
+  requestDb: typeof db = db,
+): Promise<SessionUser | null> {
+  const currentHeaders = await headers();
+
+  const devEmail = currentHeaders.get("x-dev-user-email");
+  const host = currentHeaders.get("host");
+
+  if (!host) {
+    return null;
+  }
+
+  const requestBereich = hostBereich(host);
   if (devEmail) {
     assertDevImpersonationAllowed(devEmail);
     const rows = await requestDb
@@ -49,11 +61,27 @@ export async function getSessionUser(requestDb: typeof db = db): Promise<Session
       name: devUser.name,
       role: devUser.role,
       companyId: devUser.companyId,
+      bereich: requestBereich,
     };
   }
 
-  const session = await auth();
-  if (!session?.user?.id) return null;
+    const session = await auth();
+    if (!session?.user?.id) {
+      return null;
+    }
+
+    const sessionBereich = (
+      session.user as { bereich?: "internal" | "external" }
+    ).bereich;
+
+    if (!sessionBereich) {
+      return null;
+    }
+    
+    if (requestBereich !== sessionBereich) {
+    console.warn("[auth] Session rejected: SESSION_BEREICH_MISMATCH");
+      return null;
+    }
 
   if (!UUID_REGEX.test(session.user.id)) {
     console.warn("[auth] Session rejected: SESSION_INVALID_USER_ID");
@@ -95,6 +123,7 @@ export async function getSessionUser(requestDb: typeof db = db): Promise<Session
     name: currentUser.name,
     role: currentUser.role,
     companyId: currentUser.companyId,
+    bereich: sessionBereich,
   };
 }
 
