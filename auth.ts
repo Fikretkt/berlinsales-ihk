@@ -8,7 +8,6 @@ import NextAuth, { type User as AuthUser } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db/client";
 import { user as userTable } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { authConfig } from "@/auth.config";
