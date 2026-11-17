@@ -19,6 +19,7 @@ function makeSessionUser(opts: {
   role?: "field_user" | "admin";
   name?: string;
   email?: string;
+  
 }): SessionUser {
   return {
     id: opts.id,
@@ -26,6 +27,7 @@ function makeSessionUser(opts: {
     role: opts.role ?? "field_user",
     email: opts.email ?? `user-${opts.id.slice(0, 8)}@example.com`,
     name: opts.name ?? "Test User",
+    bereich: "internal"
   };
 }
 

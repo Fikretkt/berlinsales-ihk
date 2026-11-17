@@ -20,4 +20,5 @@ export interface SessionUser {
   name: string;
   role: "field_user" | "admin";
   companyId: string;
+  bereich: "internal" | "external";
 }

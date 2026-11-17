@@ -17,7 +17,7 @@ const SALES_PIPELINE_CSV = [
 ].join("\n");
 
 function session(id: string, companyId: string): SessionUser {
-  return { id, companyId, role: "admin", name: "Admin", email: "admin@example.com" };
+  return { id, companyId, role: "admin", name: "Admin", email: "admin@example.com", bereich: "internal" };
 }
 
 describe("Sales Pipeline CSV import", () => {

@@ -5,7 +5,7 @@ import { HttpError, type SessionUser } from "@/lib/http/errors";
 import { insertAction, makeCompany, makeMarket, makeUser, startTestDatabase, stopTestDatabase, truncateUserData, type TestContext } from "../helpers/db";
 
 function session(id: string, companyId: string, role: SessionUser["role"]): SessionUser {
-  return { id, companyId, role, email: `${id}@example.com`, name: "Test User" };
+  return { id, companyId, role, email: `${id}@example.com`, name: "Test User", bereich: "internal" };
 }
 
 describe("manual market creation and permanent deletion", () => {
