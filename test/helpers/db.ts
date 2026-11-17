@@ -32,7 +32,7 @@ export async function startTestDatabase(): Promise<TestContext> {
     .start();
 
   const pool = new Pool({ connectionString: container.getConnectionUri() });
-  process.env.DATABASE_URL = container.getConnectionUri();
+  process.env.DATABASE_URL_ERSTE = container.getConnectionUri();
   global.__erstePool = pool;
 
   // Extensions zuerst (wie scripts/migrate.ts)

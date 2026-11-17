@@ -34,7 +34,11 @@ describe("Integration: Session hardening and DB revalidation", () => {
   beforeEach(async () => {
     await truncateUserData(ctx);
     vi.clearAllMocks();
-    mockHeaders.mockResolvedValue(new Headers());
+    mockHeaders.mockResolvedValue(
+      new Headers({
+        host: "internal.localhost",
+     }),
+    );
   });
 
   it("revalidates an active user successfully against PostgreSQL", async () => {
@@ -47,8 +51,14 @@ describe("Integration: Session hardening and DB revalidation", () => {
       active: true,
     });
 
+    process.env.APP_INTERNAL_HOST = "internal.localhost";
+    process.env.APP_EXTERNAL_HOST = "external.localhost";
+
     mockAuth.mockResolvedValue({
-      user: { id: userId },
+      user: {
+        id: userId,
+        bereich: "internal",
+      },
     });
 
     const sessionUser = await getSessionUser();
