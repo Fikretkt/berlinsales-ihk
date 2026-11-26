@@ -62,9 +62,10 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
         lng: 13.315,
       },
       admin,
+      ctx.db
     );
 
-    const detail = await getMarketDetail(companyId, created.marketId);
+    const detail = await getMarketDetail(companyId, created.marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.currentSolution).toBe("unbekannt");
@@ -92,10 +93,11 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
         assignedUserId: employeeId,
       },
       admin,
+      ctx.db
     );
 
     // Verify in detail query
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.assignedUserId).toBe(employeeId);
@@ -104,7 +106,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     }
 
     // Verify in list query
-    const list = await listMarkets(companyId, employeeId, {});
+    const list = await listMarkets(companyId, employeeId, {}, ctx.db);
     const item = list.items.find((m) => m.id === marketId);
     expect(item).toBeDefined();
     expect(item?.assignedUserId).toBe(employeeId);
@@ -123,7 +125,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     const marketAId = await makeMarket(ctx, { companyId: companyA, name: "Market A" });
 
     await expect(
-      updateMarket(marketAId, { assignedUserId: employeeBId }, adminA),
+      updateMarket(marketAId, { assignedUserId: employeeBId }, adminA, ctx.db),
     ).rejects.toThrowError(
       expect.objectContaining({
         status: 400,
@@ -142,7 +144,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     const marketId = await makeMarket(ctx, { companyId, name: "Test Kiosk" });
 
     await expect(
-      updateMarket(marketId, { assignedUserId: otherUserId }, fieldUser),
+      updateMarket(marketId, { assignedUserId: otherUserId }, fieldUser, ctx.db),
     ).rejects.toThrowError(
       expect.objectContaining({
         status: 403,
@@ -165,9 +167,9 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     });
 
     // Unassign
-    await updateMarket(marketId, { assignedUserId: null }, admin);
+    await updateMarket(marketId, { assignedUserId: null }, admin, ctx.db);
 
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.assignedUserId).toBeNull();
@@ -191,9 +193,10 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
         satisfaction: "unzufrieden",
       },
       rep,
+      ctx.db
     );
 
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.currentSolution).toBe("sumup");
@@ -237,7 +240,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     const aliceListIds = aliceList.items.map((m) => m.id).sort();
 
     // 2. Check Map for Alice
-    const aliceMap = await listMarketMapMarkers(companyId, repAliceId, { assignedToMe: true });
+    const aliceMap = await listMarketMapMarkers(companyId, repAliceId, { assignedToMe: true }, ctx.db);
     const aliceMapIds = aliceMap.map((m) => m.id).sort();
 
     // Identical scope!
@@ -247,7 +250,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
 
     // Bob cannot see Alice's or unassigned markets when assignedToMe=true
     const bobList = await listMarkets(companyId, repBobId, { assignedToMe: true });
-    const bobMap = await listMarketMapMarkers(companyId, repBobId, { assignedToMe: true });
+    const bobMap = await listMarketMapMarkers(companyId, repBobId, { assignedToMe: true }, ctx.db);
     expect(bobList.items.map((m) => m.id)).toEqual([mBob]);
     expect(bobMap.map((m) => m.id)).toEqual([mBob]);
   });
@@ -269,6 +272,7 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
         satisfaction: "neutral",
       },
       admin,
+      ctx.db
     );
 
     const auditRows = await ctx.pool.query<{
@@ -313,9 +317,10 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
         satisfaction: "zufrieden",
       },
       admin,
+      ctx.db
     );
 
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.chain).toBeNull();
@@ -343,11 +348,11 @@ describe("Sprint 006 — Customer Assignment & Commercial Intelligence", () => {
     const bList = await listMarkets(companyB, userB, { assignedToMe: true });
     expect(bList.items).toHaveLength(0);
 
-    const bMap = await listMarketMapMarkers(companyB, userB, { assignedToMe: true });
+    const bMap = await listMarketMapMarkers(companyB, userB, { assignedToMe: true }, ctx.db);
     expect(bMap).toHaveLength(0);
 
     // User B cannot get detail of marketA
-    const notFoundResult = await getMarketDetail(companyB, marketA);
+    const notFoundResult = await getMarketDetail(companyB, marketA, ctx.db);
     expect(notFoundResult.kind).toBe("not_found");
   });
 });

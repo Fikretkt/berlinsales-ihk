@@ -5,6 +5,8 @@ import { z } from "zod";
 import { getMarketDetail } from "@/lib/markets/repo";
 import { getSessionUser } from "@/lib/auth/session";
 import { MarketForm } from "@/components/admin/MarketForm";
+import { headers } from "next/headers";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
 
 export default async function AdminMarketEditPage({
   params,
@@ -13,10 +15,16 @@ export default async function AdminMarketEditPage({
 }) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const user = await getSessionUser();
+  const headerList = await headers();
+  const host = headerList.get("host");
+
+  if (!host) notFound();
+
+  const requestDb = hostDbAuswahl(host);
+  const user = await getSessionUser(requestDb);
   if (!user) redirect("/auth/login");
   if (user.role !== "admin") redirect("/");
-  const result = await getMarketDetail(user.companyId, id);
+  const result = await getMarketDetail(user.companyId, id, requestDb);
   if (result.kind === "not_found") notFound();
   if (result.kind === "merged") redirect(`/admin/markets/${result.mergedIntoId}`);
 

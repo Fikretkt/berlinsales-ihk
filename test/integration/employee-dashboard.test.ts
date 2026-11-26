@@ -331,8 +331,8 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     const marketA = await makeMarket(ctx, { companyId: companyA, name: "Quick Edit Market" });
 
     // 14. Admin assignment quick-edit persists correctly
-    await updateMarket(marketA, { assignedUserId: repA }, adminSession);
-    const detailAfterAssign = await getMarketDetail(companyA, marketA);
+    await updateMarket(marketA, { assignedUserId: repA }, adminSession, ctx.db);
+    const detailAfterAssign = await getMarketDetail(companyA, marketA, ctx.db);
     expect(detailAfterAssign.kind).toBe("ok");
     if (detailAfterAssign.kind === "ok") {
       expect(detailAfterAssign.market.assignedUserId).toBe(repA);
@@ -340,14 +340,14 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
 
     // 15. Non-admin assignment mutation is rejected with 403
     await expect(
-      updateMarket(marketA, { assignedUserId: adminA }, fieldSession),
+      updateMarket(marketA, { assignedUserId: adminA }, fieldSession, ctx.db),
     ).rejects.toThrowError(
       expect.objectContaining({ status: 403, code: "ADMIN_ONLY" }),
     );
 
     // 16. Tenant isolation: Admin A cannot assign a user from company B
     await expect(
-      updateMarket(marketA, { assignedUserId: repB }, adminSession),
+      updateMarket(marketA, { assignedUserId: repB }, adminSession, ctx.db),
     ).rejects.toThrowError(
       expect.objectContaining({ status: 400, code: "INVALID_ASSIGNED_USER" }),
     );

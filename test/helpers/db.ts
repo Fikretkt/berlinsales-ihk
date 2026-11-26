@@ -5,17 +5,18 @@
 //  - Hat Convenience-Builder für company/user/chain/market
 
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import * as schema from "@/lib/db/schema";
+import type { DbClient } from "@/lib/db/client";
 
 const { Pool } = pg;
 
 const MIGRATIONS_DIR = path.resolve("lib/db/migrations");
 
-export type TestDb = NodePgDatabase<typeof schema>;
+export type TestDb = DbClient;
 
 export interface TestContext {
   container: StartedPostgreSqlContainer;

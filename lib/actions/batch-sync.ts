@@ -3,7 +3,7 @@
 // Liefert synced + conflicts (strukturiertes Objekt, kein String-Code).
 
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient} from "@/lib/db/client";
 import { insertAction } from "./insert";
 import { getMarketDetail } from "@/lib/markets/repo";
 import type { ActionTypeValue, ActionResultValue, MarketStatus } from "@/lib/db/schema";
@@ -51,6 +51,7 @@ export interface BatchSyncResponse {
 export async function batchSyncActions(
   actions: BatchSyncInput[],
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<BatchSyncResponse> {
   const synced: BatchSyncResponseItem[] = [];
   const conflicts: BatchSyncResponseItem[] = [];
@@ -65,7 +66,7 @@ export async function batchSyncActions(
     }
 
     // Idempotenz: schon gesynct? → silent success in synced
-    const existing = await db.execute<{ id: string; resulting_status: string }>(sql`
+    const existing = await requestDb.execute<{ id: string; resulting_status: string }>(sql`
       SELECT id, resulting_status FROM action
       WHERE user_id = ${user.id}::uuid AND client_id = ${a.client_id}
       LIMIT 1
@@ -80,7 +81,7 @@ export async function batchSyncActions(
     }
 
     // Markt-Detail holen für Status + merged/inactive-Check
-    const detail = await getMarketDetail(user.companyId, a.market_id);
+    const detail = await getMarketDetail(user.companyId, a.market_id, requestDb);
     if (detail.kind === "merged") {
       conflicts.push({
         client_id: a.client_id,
@@ -155,7 +156,7 @@ export async function batchSyncActions(
         });
       } else if (e.code === "DUPLICATE_CLIENT_ID") {
         // Race: zwischen Idempotenz-Check und Insert eingefügt → als synced behandeln
-        const after = await db.execute<{ id: string; resulting_status: string }>(sql`
+        const after = await requestDb.execute<{ id: string; resulting_status: string }>(sql`
           SELECT id, resulting_status FROM action
           WHERE user_id = ${user.id}::uuid AND client_id = ${a.client_id}
           LIMIT 1

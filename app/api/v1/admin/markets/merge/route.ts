@@ -5,6 +5,8 @@ import { z } from "zod";
 import { mergeMarkets } from "@/lib/markets/crud";
 import { requireAdmin } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const schema = z.object({
   primary_id: z.string().uuid(),
@@ -13,7 +15,14 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireAdmin();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireAdmin(requestDb);
     const body = await req.json().catch(() => null);
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
@@ -23,6 +32,7 @@ export async function POST(req: NextRequest) {
       parsed.data.primary_id,
       parsed.data.duplicate_id,
       user,
+      requestDb,
     );
     return ok({
       primary_id: parsed.data.primary_id,

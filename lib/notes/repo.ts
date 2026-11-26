@@ -1,7 +1,7 @@
 // Notes-Repository: Liste pro Markt, Anlegen, Editieren (innerhalb editable_until).
 
 import { sql, eq, desc, and } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { market as marketTable, note as noteTable, user as userTable } from "@/lib/db/schema";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
 import { getMarketDetail } from "@/lib/markets/repo";
@@ -20,10 +20,11 @@ export interface NoteItem {
 export async function listNotesForMarket(
   marketId: string,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<NoteItem[]> {
-  const market = await getMarketDetail(user.companyId, marketId);
+  const market = await getMarketDetail(user.companyId, marketId, requestDb);
   if (market.kind !== "ok") throw new HttpError(404, "MARKET_NOT_FOUND", "Markt nicht gefunden");
-  const rows = await db
+  const rows = await requestDb
     .select({
       id: noteTable.id,
       marketId: noteTable.marketId,
@@ -57,8 +58,9 @@ export async function createNote(
   marketId: string,
   content: string,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<NoteItem> {
-  const market = await getMarketDetail(user.companyId, marketId);
+  const market = await getMarketDetail(user.companyId, marketId, requestDb);
   if (market.kind !== "ok") throw new HttpError(404, "MARKET_NOT_FOUND", "Markt nicht gefunden");
   if (content.trim().length === 0) {
     throw new HttpError(400, "VALIDATION_FAILED", "Notiz darf nicht leer sein");
@@ -66,7 +68,7 @@ export async function createNote(
   if (content.length > 5000) {
     throw new HttpError(400, "VALIDATION_FAILED", "Notiz ist zu lang (max 5000 Zeichen)");
   }
-  const res = await db
+  const res = await requestDb
     .insert(noteTable)
     .values({
       marketId,
@@ -94,11 +96,12 @@ export async function updateNote(
   noteId: string,
   newContent: string,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<void> {
   if (newContent.trim().length === 0) {
     throw new HttpError(400, "VALIDATION_FAILED", "Notiz darf nicht leer sein");
   }
-  const rows = await db
+  const rows = await requestDb
     .select({
       id: noteTable.id,
       userId: noteTable.userId,
@@ -122,7 +125,7 @@ export async function updateNote(
       "Notizen sind nur innerhalb von 24 Stunden editierbar",
     );
   }
-  await db
+  await requestDb
     .update(noteTable)
     .set({ content: newContent.trim() })
     .where(and(eq(noteTable.id, noteId), eq(noteTable.userId, user.id)));

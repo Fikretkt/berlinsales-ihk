@@ -6,18 +6,27 @@ import { z } from "zod";
 import { listNotesForMarket, createNote } from "@/lib/notes/repo";
 import { requireUser } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const idSchema = z.string().uuid();
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) return validationFailed("Ungültige Markt-ID");
-    const items = await listNotesForMarket(id, user);
+    const items = await listNotesForMarket(id, user, requestDb);
     return ok({ items });
   });
 }
@@ -29,7 +38,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) return validationFailed("Ungültige Markt-ID");
     const body = await req.json().catch(() => null);
@@ -37,7 +53,7 @@ export async function POST(
     if (!parsed.success) {
       return validationFailed(parsed.error.issues[0]?.message ?? "Eingabe ungültig");
     }
-    const note = await createNote(id, parsed.data.content, user);
+    const note = await createNote(id, parsed.data.content, user, requestDb);
     return ok(note, 201);
   });
 }
