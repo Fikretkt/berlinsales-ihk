@@ -34,6 +34,10 @@ describe("Integration: Session hardening and DB revalidation", () => {
   beforeEach(async () => {
     await truncateUserData(ctx);
     vi.clearAllMocks();
+
+    process.env.APP_INTERNAL_HOST = "internal.localhost";
+    process.env.APP_EXTERNAL_HOST = "external.localhost";
+
     mockHeaders.mockResolvedValue(
       new Headers({
         host: "internal.localhost",
@@ -50,9 +54,6 @@ describe("Integration: Session hardening and DB revalidation", () => {
       role: "field_user",
       active: true,
     });
-
-    process.env.APP_INTERNAL_HOST = "internal.localhost";
-    process.env.APP_EXTERNAL_HOST = "external.localhost";
 
     mockAuth.mockResolvedValue({
       user: {
@@ -79,7 +80,10 @@ describe("Integration: Session hardening and DB revalidation", () => {
     });
 
     mockAuth.mockResolvedValue({
-      user: { id: userId },
+      user: { 
+        id: userId,
+        bereich: "internal"
+      },
     });
 
     const sessionUser = await getSessionUser();
@@ -89,7 +93,10 @@ describe("Integration: Session hardening and DB revalidation", () => {
   it("rejects a non-existent/deleted user (stale JWT with deleted ID)", async () => {
     const nonExistentUserId = "99999999-9999-4999-8999-999999999999";
     mockAuth.mockResolvedValue({
-      user: { id: nonExistentUserId },
+      user: { 
+        id: nonExistentUserId,
+        bereich: "internal"
+      },
     });
 
     const sessionUser = await getSessionUser();
@@ -98,26 +105,52 @@ describe("Integration: Session hardening and DB revalidation", () => {
 
   it("rejects a user whose tenant/company was removed", async () => {
     const companyId = await makeCompany(ctx, "Temporary Corp");
+
     const userId = await makeUser(ctx, {
       companyId,
       email: "orphan@testcorp.com",
       active: true,
     });
 
-    // Remove foreign key check temporarily to simulate an invalid/deleted company reference
-    await ctx.pool.query("ALTER TABLE \"user\" DROP CONSTRAINT IF EXISTS user_company_id_company_id_fk");
-    await ctx.pool.query("DELETE FROM company WHERE id = $1", [companyId]);
+  // Foreign Key vorübergehend entfernen
+    await ctx.pool.query(`
+      ALTER TABLE "user"
+      DROP CONSTRAINT user_company_id_company_id_fk
+    `);
 
-    mockAuth.mockResolvedValue({
-      user: { id: userId },
-    });
+    try {
+      await ctx.pool.query(
+        "DELETE FROM company WHERE id = $1",
+        [companyId],
+      );
 
-    const sessionUser = await getSessionUser();
-    expect(sessionUser).toBeNull();
+      mockAuth.mockResolvedValue({
+        user: {
+          id: userId,
+          bereich: "internal",
+        },
+      });
 
-    // Restore constraint
-    await ctx.pool.query(
-      "ALTER TABLE \"user\" ADD CONSTRAINT user_company_id_company_id_fk FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE RESTRICT"
-    ).catch(() => {});
+     const sessionUser = await getSessionUser();
+
+     expect(sessionUser).toBeNull();
+    } finally {
+    // Benutzer ohne gültige Firma entfernen
+      await ctx.pool.query(
+        'DELETE FROM "user" WHERE id = $1',
+        [userId],
+      );
+
+    // Ursprünglichen Foreign Key wiederherstellen
+      await ctx.pool.query(`
+        ALTER TABLE "user"
+        ADD CONSTRAINT user_company_id_company_id_fk
+        FOREIGN KEY ("company_id")
+        REFERENCES "public"."company"("id")
+        ON DELETE RESTRICT
+        ON UPDATE NO ACTION
+      `);
+    }
   });
 });
+
