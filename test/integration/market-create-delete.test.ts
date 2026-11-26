@@ -19,8 +19,8 @@ describe("manual market creation and permanent deletion", () => {
     const companyB = await makeCompany(ctx, "B");
     const fieldId = await makeUser(ctx, { companyId: companyA, role: "field_user" });
     const adminId = await makeUser(ctx, { companyId: companyA, role: "admin" });
-    const fieldCreated = await createMarket({ name: "Field GPS", streetFull: "", lat: 52.52, lng: 13.405, companyId: companyB } as Parameters<typeof createMarket>[0], session(fieldId, companyA, "field_user"));
-    const adminCreated = await createMarket({ name: "Admin GPS", streetFull: "", lat: 52.53, lng: 13.406 }, session(adminId, companyA, "admin"));
+    const fieldCreated = await createMarket({ name: "Field GPS", streetFull: "", lat: 52.52, lng: 13.405, companyId: companyB } as Parameters<typeof createMarket>[0], session(fieldId, companyA, "field_user"), ctx.db);
+    const adminCreated = await createMarket({ name: "Admin GPS", streetFull: "", lat: 52.53, lng: 13.406 }, session(adminId, companyA, "admin"), ctx.db);
     const { rows } = await ctx.pool.query<{ id: string; company_id: string; external_id: string | null }>("SELECT id, company_id, external_id FROM market WHERE id = ANY($1::uuid[])", [[fieldCreated.marketId, adminCreated.marketId]]);
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.company_id === companyA && row.external_id === null)).toBe(true);

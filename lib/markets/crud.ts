@@ -1,7 +1,7 @@
 // Markt-CRUD-Operationen (Anlegen, Bearbeiten, Deaktivieren, Reaktivieren, Mergen).
 
 import { sql, eq, and, ne, isNull } from "drizzle-orm";
-import { db, pool, type DbClient} from "@/lib/db/client";
+import type {DbClient} from "@/lib/db/client";
 import {
   market as marketTable,
   user as userTable,
@@ -47,8 +47,6 @@ export interface SimilarMarket {
   similarity: number;
 }
 
-const PG = pool;
-
 function mapPgError(err: unknown, fallbackMessage: string): never {
   const code = (err as { code?: string })?.code;
   if (code === "23505") {
@@ -63,7 +61,7 @@ function mapPgError(err: unknown, fallbackMessage: string): never {
 export async function createMarket(
   input: CreateMarketInput,
   user: SessionUser,
-  requestDb: DbClient = db,
+  requestDb: DbClient,
 ): Promise<CreateMarketResult> {
   // Chain existiert?
   if (input.chainId) {
@@ -193,7 +191,7 @@ export async function updateMarket(
   id: string,
   input: UpdateMarketInput,
   user: SessionUser,
-  requestDb: DbClient = db,
+  requestDb: DbClient,
 ): Promise<void> {
   const existing = await requestDb
     .select({ id: marketTable.id, mergedIntoId: marketTable.mergedIntoId })
@@ -307,7 +305,7 @@ export async function updateMarket(
   notifyMarketUpdated(id, "_metadata_changed").catch(() => {});
 }
 
-export async function deactivateMarket(id: string, user: SessionUser, requestDb: DbClient = db): Promise<void> {
+export async function deactivateMarket(id: string, user: SessionUser, requestDb: DbClient): Promise<void> {
   const rows = await requestDb
     .select({ active: marketTable.active, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
@@ -340,7 +338,7 @@ export async function deactivateMarket(id: string, user: SessionUser, requestDb:
   notifyMarketUpdated(id, "grau").catch(() => {});
 }
 
-export async function reactivateMarket(id: string, user: SessionUser, requestDb: DbClient = db): Promise<void> {
+export async function reactivateMarket(id: string, user: SessionUser, requestDb: DbClient): Promise<void> {
   const rows = await requestDb
     .select({ active: marketTable.active, mergedIntoId: marketTable.mergedIntoId })
     .from(marketTable)
@@ -374,7 +372,7 @@ export async function mergeMarkets(
   primaryId: string,
   duplicateId: string,
   user: SessionUser,
-  requestDb: DbClient = db,
+  requestDb: DbClient,
 ): Promise<MergeResult> {
   if (primaryId === duplicateId) {
     throw new HttpError(400, "VALIDATION_FAILED", "Primary und Duplikat müssen unterschiedlich sein");
@@ -400,7 +398,7 @@ export async function mergeMarkets(
   };
 
   const sorted = [primaryId, duplicateId].sort();
-  const client = await PG.connect();
+  const client = await requestDb.$client.connect();
   try {
     await client.query("BEGIN");
     for (const id of sorted) {
@@ -480,7 +478,7 @@ export async function listAdminMarkets(companyId: string, opts: {
   includeInactive?: boolean;
   limit?: number;
   offset?: number;
-}, requestDb: DbClient = db): Promise<{ items: AdminMarketListItem[]; total: number }> {
+}, requestDb: DbClient): Promise<{ items: AdminMarketListItem[]; total: number }> {
   const limit = Math.min(opts.limit ?? 50, 200);
   const offset = opts.offset ?? 0;
 
@@ -535,7 +533,7 @@ export async function listAdminMarkets(companyId: string, opts: {
   };
 }
 
-export async function listChains(requestDb: DbClient = db): Promise<{ id: string; name: string }[]> {
+export async function listChains(requestDb: DbClient): Promise<{ id: string; name: string }[]> {
   const rows = await requestDb
     .select({ id: chainTable.id, name: chainTable.name })
     .from(chainTable)

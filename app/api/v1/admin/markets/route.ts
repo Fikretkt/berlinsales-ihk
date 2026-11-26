@@ -5,6 +5,8 @@ import { z } from "zod";
 import { listAdminMarkets } from "@/lib/markets/crud";
 import { requireAdmin } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const querySchema = z.object({
   search: z.string().min(1).max(100).optional(),
@@ -15,7 +17,14 @@ const querySchema = z.object({
 
 export async function GET(req: NextRequest) {
   return withErrorHandler(async () => {
-    const admin = await requireAdmin();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const admin = await requireAdmin(requestDb);
     const parsed = querySchema.safeParse(
       Object.fromEntries(req.nextUrl.searchParams),
     );
@@ -27,7 +36,9 @@ export async function GET(req: NextRequest) {
       includeInactive: parsed.data.include_inactive === "true",
       limit: parsed.data.limit,
       offset: parsed.data.offset,
-    });
+    },
+    requestDb
+    );
     return ok(result);
   });
 }

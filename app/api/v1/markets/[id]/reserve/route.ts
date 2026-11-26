@@ -6,19 +6,28 @@ import { z } from "zod";
 import { createReservation, cancelReservation } from "@/lib/reservations/insert";
 import { requireUser } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const idSchema = z.string().uuid();
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) return validationFailed("Ungültige Markt-ID");
 
-    const result = await createReservation(id, user);
+    const result = await createReservation(id, user, requestDb);
     return ok(
       {
         reservation_id: result.reservationId,
@@ -30,14 +39,21 @@ export async function POST(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) return validationFailed("Ungültige Markt-ID");
-    const result = await cancelReservation(id, user);
+    const result = await cancelReservation(id, user, requestDb);
     return ok(result);
   });
 }

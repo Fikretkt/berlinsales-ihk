@@ -3,7 +3,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
 import { user as userTable } from "@/lib/db/schema";
 import { listMarketMapMarkers } from "@/lib/markets/repo";
 import { requireUser } from "@/lib/auth/session";
@@ -25,7 +25,18 @@ const STATUS_VALUES = ["gruen", "blau", "gelb", "orange", "rosa", "rot", "grau"]
 
 export async function GET(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(
+        400,
+        "HOST_REQUIRED",
+        "Host fehlt",
+      );
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const parsed = querySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
     if (!parsed.success) {
       return validationFailed("Ungültige Filter");
@@ -39,7 +50,7 @@ export async function GET(req: NextRequest) {
           "Filter nach beliebigen Mitarbeitern ist nur Admins erlaubt",
         );
       }
-      const targetUserRows = await db
+      const targetUserRows = await requestDb
         .select({ id: userTable.id })
         .from(userTable)
         .where(
@@ -69,7 +80,7 @@ export async function GET(req: NextRequest) {
       reservedByMe: parsed.data.reserved_by_me === "true",
       assignedToMe: parsed.data.assigned_to_me === "true",
       assignedUserId: parsed.data.assigned_user_id,
-    });
+    }, requestDb);
     return ok({ items });
   });
 }

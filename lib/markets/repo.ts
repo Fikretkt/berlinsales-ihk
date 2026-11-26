@@ -166,17 +166,17 @@ function marketConditions(
   return conditions;
 }
 
-export async function listMarketFilterOptions(companyId: string): Promise<{
+export async function listMarketFilterOptions(companyId: string, requestDb: DbClient): Promise<{
   districts: string[];
   chains: { id: string; name: string }[];
 }> {
   const [districts, chains] = await Promise.all([
-    db.execute<{ district: string }>(sql`
+    requestDb.execute<{ district: string }>(sql`
       SELECT DISTINCT district FROM market
       WHERE company_id = ${companyId}::uuid AND merged_into_id IS NULL AND district IS NOT NULL
       ORDER BY district
     `),
-    db.execute<{ id: string; name: string }>(sql`
+    requestDb.execute<{ id: string; name: string }>(sql`
       SELECT DISTINCT c.id, c.name FROM chain c
       INNER JOIN market m ON m.chain_id = c.id
       WHERE m.company_id = ${companyId}::uuid AND m.merged_into_id IS NULL
@@ -190,9 +190,10 @@ export async function listMarketMapMarkers(
   companyId: string,
   userId: string,
   filters: MarketListFilters = {},
+  requestDb: DbClient = db,
 ): Promise<MarketMapMarker[]> {
   const whereClause = sql.join(marketConditions(companyId, userId, filters), sql` AND `);
-  const result = await db.execute<RawMapMarker>(sql`
+  const result = await requestDb.execute<RawMapMarker>(sql`
     SELECT
       m.id, m.name, m.street_full, m.district,
       m.lat::text, m.lng::text,
@@ -422,8 +423,8 @@ interface RawDetailRow extends RawListRow {
   [key: string]: unknown;
 }
 
-export async function getMarketDetail(companyId: string, id: string): Promise<MarketDetailResult> {
-  const result = await db.execute<RawDetailRow>(sql`
+export async function getMarketDetail(companyId: string, id: string, requestDb: DbClient): Promise<MarketDetailResult> {
+  const result = await requestDb.execute<RawDetailRow>(sql`
     SELECT
       m.id, m.name, m.gln,
       m.chain_id, c.name AS chain_name,

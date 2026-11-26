@@ -4,7 +4,7 @@
 import { sql } from "drizzle-orm";
 import { endOfDay } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import { pool, db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { auditLog } from "@/lib/db/schema";
 import { getMarketDetail } from "@/lib/markets/repo";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
@@ -31,9 +31,10 @@ export interface ReserveResult {
 export async function createReservation(
   marketId: string,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<ReserveResult> {
   // Markt-Status prüfen (via repo)
-  const detail = await getMarketDetail(user.companyId, marketId);
+  const detail = await getMarketDetail(user.companyId, marketId, requestDb);
   if (detail.kind === "not_found") {
     throw new HttpError(404, "MARKET_NOT_FOUND", "Markt nicht gefunden");
   }
@@ -52,7 +53,7 @@ export async function createReservation(
 
   const validUntil = endOfTodayBerlinUtc();
 
-  const client = await pool.connect();
+  const client = await requestDb.$client.connect();
   try {
     await client.query("BEGIN");
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [marketId]);
@@ -86,9 +87,10 @@ export async function createReservation(
 export async function cancelReservation(
   marketId: string,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<{ cancelled: boolean }> {
   // Eigene Reservierung: jeder darf. Fremde: nur Admin.
-  const rows = await db.execute<{ id: string; user_id: string }>(sql`
+  const rows = await requestDb.execute<{ id: string; user_id: string }>(sql`
     SELECT r.id, r.user_id FROM reservation r
     INNER JOIN market m ON m.id = r.market_id
     WHERE r.market_id = ${marketId}::uuid AND m.company_id = ${user.companyId}::uuid AND r.active = TRUE
@@ -107,7 +109,7 @@ export async function cancelReservation(
     );
   }
 
-  await db.transaction(async (tx) => {
+  await requestDb.transaction(async (tx) => {
     await tx.execute(sql`
       UPDATE reservation
       SET active = FALSE, cancelled_at = NOW(), cancelled_by_user_id = ${user.id}::uuid
@@ -124,7 +126,7 @@ export async function cancelReservation(
   });
 
   // NOTIFY: status bleibt gleich, aber Reservation-Info ist weg → Frontend refetcht
-  const after = await getMarketDetail(user.companyId, marketId);
+  const after = await getMarketDetail(user.companyId, marketId, requestDb);
   if (after.kind === "ok") {
     notifyMarketUpdated(marketId, after.market.computedStatus).catch(() => {});
   }

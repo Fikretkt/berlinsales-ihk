@@ -5,6 +5,8 @@ import { z } from "zod";
 import { batchSyncActions } from "@/lib/actions/batch-sync";
 import { requireUser } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const ACTION_TYPES = [
   "visit",
@@ -40,13 +42,20 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const body = await req.json().catch(() => null);
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
       return validationFailed(parsed.error.issues[0]?.message ?? "Eingabe ungültig");
     }
-    const result = await batchSyncActions(parsed.data.actions, user);
+    const result = await batchSyncActions(parsed.data.actions, user, requestDb);
     return ok(result, 207);
   });
 }

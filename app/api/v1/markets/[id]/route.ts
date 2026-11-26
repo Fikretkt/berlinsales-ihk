@@ -7,21 +7,30 @@ import { getMarketDetail } from "@/lib/markets/repo";
 import { updateMarket } from "@/lib/markets/crud";
 import { requireUser, requireAdmin } from "@/lib/auth/session";
 import { ok, fail, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const idSchema = z.string().uuid();
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) {
       return validationFailed("Ungültige Markt-ID");
     }
 
-    const result = await getMarketDetail(user.companyId, id);
+    const result = await getMarketDetail(user.companyId, id, requestDb);
     if (result.kind === "not_found") {
       return fail(
         { code: "MARKET_NOT_FOUND", message: "Markt nicht gefunden" },
@@ -69,8 +78,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireAdmin();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireAdmin(requestDb);
     const { id } = await params;
+
     if (!idSchema.safeParse(id).success) {
       return validationFailed("Ungültige Markt-ID");
     }
@@ -98,7 +114,7 @@ export async function PATCH(
         currentSolution: parsed.data.current_solution,
         satisfaction: parsed.data.satisfaction,
       },
-      user,
+      user, requestDb,
     );
     return ok({ updated: true });
   });

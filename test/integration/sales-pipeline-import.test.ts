@@ -42,7 +42,7 @@ describe("Sales Pipeline CSV import", () => {
     const list = await listMarkets(companyId, adminId, {});
     expect(list.items).toHaveLength(1);
 
-    const detail = await getMarketDetail(companyId, list.items[0]!.id);
+    const detail = await getMarketDetail(companyId, list.items[0]!.id, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market).toMatchObject({
@@ -77,7 +77,7 @@ describe("Sales Pipeline CSV import", () => {
 
     const listA = await listMarkets(companyA, adminA, {});
     const listB = await listMarkets(companyB, adminB, {});
-    const mapA = await listMarketMapMarkers(companyA, adminA, {});
+    const mapA = await listMarketMapMarkers(companyA, adminA, {}, ctx.db);
 
     expect(listA.items).toHaveLength(1);
     expect(listA.items[0]).toMatchObject({ lat: null, lng: null });

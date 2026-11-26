@@ -13,6 +13,8 @@ import { InteractionPanel } from "@/components/markets/InteractionPanel";
 import { DeleteCustomerButton } from "@/components/markets/DeleteCustomerButton";
 import { formatBerlinDate, formatBerlinDateTime } from "@/lib/markets/status-display";
 import { calculateExpectedNetRevenue } from "@/lib/sales/revenue";
+import { headers } from "next/headers";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
 
 const ID_SCHEMA = z.string().uuid();
 
@@ -24,10 +26,16 @@ export default async function MarketDetailPage({
   const { id } = await params;
   if (!ID_SCHEMA.safeParse(id).success) notFound();
 
-  const user = await getSessionUser();
+  const headerList = await headers();
+  const host = headerList.get("host");
+
+  if (!host) notFound();
+
+  const requestDb = hostDbAuswahl(host);
+  const user = await getSessionUser(requestDb);
   if (!user) redirect("/auth/login");
 
-  const result = await getMarketDetail(user.companyId, id);
+  const result = await getMarketDetail(user.companyId, id, requestDb);
   if (result.kind === "not_found") notFound();
   if (result.kind === "merged") redirect(`/markets/${result.mergedIntoId}`);
 

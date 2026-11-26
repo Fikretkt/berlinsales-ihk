@@ -5,7 +5,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 import { auditLog } from "@/lib/db/schema";
 import { getMarketDetail } from "@/lib/markets/repo";
 import { AUDIT_EVENTS } from "@/lib/audit/events";
@@ -31,20 +32,27 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+      if (!host) {
+        throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+     }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const body = await req.json().catch(() => null);
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return validationFailed(parsed.error.issues[0]?.message ?? "Eingabe ungültig");
     }
 
-    const market = await getMarketDetail(user.companyId, parsed.data.market_id);
+    const market = await getMarketDetail(user.companyId, parsed.data.market_id, requestDb);
     if (market.kind !== "ok") {
       return validationFailed("Markt nicht gefunden", "market_id");
     }
 
     // Idempotenz-Check: schon gemeldet für diese client_id?
-    const existing = await db.execute<{ id: string; created_at: string }>(sql`
+    const existing = await requestDb.execute<{ id: string; created_at: string }>(sql`
       SELECT id, created_at::text FROM audit_log
       WHERE event = 'offline_conflict_reported'
         AND user_id = ${user.id}::uuid AND company_id = ${user.companyId}::uuid
@@ -59,7 +67,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const res = await db
+    const res = await requestDb
       .insert(auditLog)
       .values({
         companyId: user.companyId,

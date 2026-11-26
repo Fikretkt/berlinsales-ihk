@@ -5,6 +5,8 @@ import { z } from "zod";
 import { updateMarket } from "@/lib/markets/crud";
 import { requireUser } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const idSchema = z.string().uuid();
 
@@ -27,7 +29,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) {
       return validationFailed("Ungültige Markt-ID");
@@ -46,6 +55,7 @@ export async function PATCH(
         satisfaction: parsed.data.satisfaction,
       },
       user,
+      requestDb,
     );
     return ok({ updated: true });
   });

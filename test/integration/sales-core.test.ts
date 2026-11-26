@@ -116,7 +116,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
 
     expect(res.salesStage).toBe("interesse");
 
-    const detailRes = await getMarketDetail(companyId, marketId);
+    const detailRes = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detailRes.kind).toBe("ok");
     if (detailRes.kind === "ok") {
       expect(detailRes.market.salesStage).toBe("interesse");
@@ -147,7 +147,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
     );
 
-    const detailRes = await getMarketDetail(companyId, marketId);
+    const detailRes = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detailRes.kind).toBe("ok");
     if (detailRes.kind === "ok") {
       expect(detailRes.market.salesStage).toBe("gewonnen");
@@ -185,7 +185,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
     );
     expect(diffDays).toBe(7);
 
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.nextFollowUp).not.toBeNull();
@@ -378,7 +378,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
     expect(openFollowUps).toHaveLength(0);
 
     // Verify market detail shows noContact = true
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.noContact).toBe(true);
@@ -463,7 +463,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
     expect(res.salesStage).toBe("kontaktiert");
     expect(res.followUpDueAt).toBeInstanceOf(Date);
 
-    const detail = await getMarketDetail(companyId, marketId);
+    const detail = await getMarketDetail(companyId, marketId, ctx.db);
     expect(detail.kind).toBe("ok");
     if (detail.kind === "ok") {
       expect(detail.market.gln).toBeNull();
