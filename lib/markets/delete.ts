@@ -1,13 +1,13 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { AUDIT_EVENTS } from "@/lib/audit/events";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
 
-export async function permanentlyDeleteMarket(marketId: string, admin: SessionUser): Promise<void> {
+export async function permanentlyDeleteMarket(marketId: string, admin: SessionUser, requestDb: DbClient): Promise<void> {
   if (admin.role !== "admin") {
     throw new HttpError(403, "FIELD_USER_NOT_ALLOWED", "Diese Aktion ist Admins vorbehalten");
   }
-  await db.transaction(async (tx) => {
+  await requestDb.transaction(async (tx) => {
     const found = await tx.execute<{ id: string; name: string }>(sql`
       SELECT id, name FROM market
       WHERE id = ${marketId}::uuid AND company_id = ${admin.companyId}::uuid

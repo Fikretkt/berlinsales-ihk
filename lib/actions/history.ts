@@ -1,7 +1,7 @@
 // Aktions-Historie pro Markt (letzte N).
 
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 
 export interface ActionHistoryItem {
   id: string;
@@ -26,9 +26,10 @@ export interface ActionHistoryItem {
 export async function listMarketHistory(
   companyId: string,
   marketId: string,
+  requestDb: DbClient,
   limit = 20,
-): Promise<ActionHistoryItem[]> {
-  const result = await db.execute<{
+  ): Promise<ActionHistoryItem[]> {
+  const result = await requestDb.execute<{
     id: string;
     type: string;
     contact_type: string | null;

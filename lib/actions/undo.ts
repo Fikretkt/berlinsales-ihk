@@ -9,7 +9,7 @@
 // Wenn der User die wieder will, klickt er auf „Reservieren".
 
 import { sql } from "drizzle-orm";
-import { pool, db } from "@/lib/db/client";
+import type {DbClient } from "@/lib/db/client";
 import { AUDIT_EVENTS } from "@/lib/audit/events";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
 import { notifyMarketUpdated } from "@/lib/sse/notify";
@@ -24,8 +24,9 @@ export interface UndoResult {
 export async function undoAction(
   actionId: string,
   user: SessionUser,
+  requestDb: DbClient
 ): Promise<UndoResult> {
-  const client = await pool.connect();
+  const client = await requestDb.$client.connect();
   try {
     await client.query("BEGIN");
 
@@ -113,13 +114,13 @@ export async function undoAction(
     await client.query("COMMIT");
 
     // Neuen Status holen für die Antwort
-    const statusRes = await db.execute<{ computed_status: string }>(sql`
+    const statusRes = await requestDb.execute<{ computed_status: string }>(sql`
       SELECT computed_status FROM v_market_status WHERE market_id = ${action.market_id}::uuid
     `);
     const newStatus = statusRes.rows[0]?.computed_status ?? "gruen";
 
     // SSE NOTIFY: andere User sollen den Markt neu laden
-    notifyMarketUpdated(action.market_id, newStatus).catch(() => {});
+    notifyMarketUpdated(action.market_id, newStatus, requestDb).catch(() => {});
 
     return { marketId: action.market_id, newStatus };
   } catch (err) {

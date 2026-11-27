@@ -82,7 +82,7 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
     // Activity on Company B
     await insertAction(
       { marketId: marketB, type: "visit", contactType: "visit", result: "success", salesStage: "gewonnen", salesValue: 1000 },
-      sessionB,
+      sessionB, ctx.db,
     );
 
     const dashA = await getManagementDashboard(companyA, "week");
@@ -110,12 +110,12 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
     // Contact 1: Today visit
     await insertAction(
       { marketId: mToday1, type: "visit", contactType: "visit", result: "success" },
-      repSession,
+      repSession, ctx.db,
     );
     // Contact 2: Today phone call
     await insertAction(
       { marketId: mToday2, type: "visit", contactType: "phone", result: "success" },
-      repSession,
+      repSession, ctx.db,
     );
 
     const dashToday = await getManagementDashboard(companyId, "today");
@@ -136,12 +136,12 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
     // Record won transition action today
     await insertAction(
       { marketId: mWon, type: "visit", contactType: "visit", result: "success", salesStage: "gewonnen", salesValue: 750 },
-      repSession,
+      repSession, ctx.db,
     );
     // Record lost transition action today
     await insertAction(
       { marketId: mLost, type: "visit", contactType: "phone", result: "declined", salesStage: "verloren" },
-      repSession,
+      repSession, ctx.db,
     );
 
     const dash = await getManagementDashboard(companyId, "today");
@@ -165,13 +165,13 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
       const m = await makeMarket(ctx, { companyId, name: `Won ${i}` });
       await insertAction(
         { marketId: m, type: "visit", contactType: "visit", result: "success", salesStage: "gewonnen" },
-        repSession,
+        repSession, ctx.db,
       );
     }
     const mLost = await makeMarket(ctx, { companyId, name: "Lost 1" });
     await insertAction(
       { marketId: mLost, type: "visit", contactType: "phone", result: "declined", salesStage: "verloren" },
-      repSession,
+      repSession, ctx.db,
     );
 
     const dash = await getManagementDashboard(companyId, "week");
@@ -215,15 +215,15 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
     // Activity: Anna has 2 visits (1 won), Bob has 1 call
     await insertAction(
       { marketId: mA1, type: "visit", contactType: "visit", result: "success" },
-      sessionA,
+      sessionA, ctx.db,
     );
     await insertAction(
       { marketId: mA2, type: "visit", contactType: "visit", result: "success", salesStage: "gewonnen", salesValue: 500 },
-      sessionA,
+      sessionA, ctx.db,
     );
     await insertAction(
       { marketId: mB1, type: "visit", contactType: "phone", result: "success" },
-      sessionB,
+      sessionB, ctx.db,
     );
 
     // Overdue follow-up for Anna
@@ -311,15 +311,15 @@ describe("Sprint 008 — Management Dashboard Integration Suite", () => {
 
     await insertAction(
       { marketId: m1, type: "visit", contactType: "visit", result: "declined", feedbackReason: "preis" },
-      repSession,
+      repSession, ctx.db
     );
     await insertAction(
       { marketId: m2, type: "visit", contactType: "visit", result: "declined", feedbackReason: "preis" },
-      repSession,
+      repSession, ctx.db
     );
     await insertAction(
       { marketId: m3, type: "visit", contactType: "phone", result: "declined", feedbackReason: "keine_zeit" },
-      repSession,
+      repSession, ctx.db
     );
 
     const dash = await getManagementDashboard(companyId, "week");

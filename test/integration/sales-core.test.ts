@@ -66,6 +66,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         note: "Kunde möchte Preisvergleich.",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user", name: "Field Rep" }),
+      ctx.db,
     );
 
     expect(result.actionId).toBeDefined();
@@ -112,6 +113,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         salesStage: "interesse",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db,
     );
 
     expect(res.salesStage).toBe("interesse");
@@ -145,6 +147,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         salesValue: 1250.5,
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db,
     );
 
     const detailRes = await getMarketDetail(companyId, marketId, ctx.db);
@@ -177,6 +180,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "1w",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user", name: "Max" }),
+      ctx.db,
     );
 
     expect(res.followUpDueAt).toBeInstanceOf(Date);
@@ -214,6 +218,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "1m",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     expect(res.followUpDueAt).toBeInstanceOf(Date);
@@ -243,6 +248,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "3m",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     expect(res.followUpDueAt).toBeInstanceOf(Date);
@@ -274,6 +280,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpDueAt: targetDate,
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     expect(res.followUpDueAt).toBeInstanceOf(Date);
@@ -302,6 +309,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "1w",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     // Second follow-up (1 month) via profi_visit (valid follow-up on escalated market)
@@ -314,6 +322,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "1m",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     const { rows: openFollowUps } = await ctx.pool.query<{ id: string; status: string }>(
@@ -354,6 +363,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "1w",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     // Now record interaction with "never_contact" via profi_visit (valid on Rosa)
@@ -366,6 +376,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         followUpType: "never_contact",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     expect(neverRes.noContact).toBe(true);
@@ -396,6 +407,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
           followUpType: "1w",
         },
         makeSessionUser({ id: userId, companyId, role: "field_user" }),
+        ctx.db
       ),
     ).rejects.toThrow(HttpError);
   });
@@ -425,6 +437,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
           followUpType: "1w",
         },
         makeSessionUser({ id: userA, companyId: companyA, role: "field_user" }),
+        ctx.db
       ),
     ).rejects.toMatchObject({
       status: 404,
@@ -457,6 +470,7 @@ describe("Sprint 005 — Sales Core integration tests", () => {
         note: "Inhaberin war beschäftigt, nächste Woche wiederkommen.",
       },
       makeSessionUser({ id: userId, companyId, role: "field_user" }),
+      ctx.db
     );
 
     expect(res.actionId).toBeDefined();

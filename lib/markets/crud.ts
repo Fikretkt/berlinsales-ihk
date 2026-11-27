@@ -302,7 +302,7 @@ export async function updateMarket(
   });
 
   // Notify nur wenn relevante Felder geändert wurden (UI-Refetch zwecks neuer Adresse, Name)
-  notifyMarketUpdated(id, "_metadata_changed").catch(() => {});
+  notifyMarketUpdated(id, "_metadata_changed", requestDb).catch(() => {});
 }
 
 export async function deactivateMarket(id: string, user: SessionUser, requestDb: DbClient): Promise<void> {
@@ -335,7 +335,7 @@ export async function deactivateMarket(id: string, user: SessionUser, requestDb:
       payload: { market_id: id },
     });
   });
-  notifyMarketUpdated(id, "grau").catch(() => {});
+  notifyMarketUpdated(id, "grau", requestDb).catch(() => {});
 }
 
 export async function reactivateMarket(id: string, user: SessionUser, requestDb: DbClient): Promise<void> {
@@ -359,7 +359,7 @@ export async function reactivateMarket(id: string, user: SessionUser, requestDb:
       payload: { market_id: id },
     });
   });
-  notifyMarketUpdated(id, "_reactivated").catch(() => {});
+  notifyMarketUpdated(id, "_reactivated", requestDb).catch(() => {});
 }
 
 export interface MergeResult {
@@ -453,7 +453,7 @@ export async function mergeMarkets(
     client.release();
   }
 
-  notifyMarketsBulkUpdated([primaryId, duplicateId]).catch(() => {});
+  notifyMarketsBulkUpdated([primaryId, duplicateId], requestDb).catch(() => {});
 
   return result;
 }

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, pool } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { market as marketTable } from "@/lib/db/schema";
 import { computeResultingStatus } from "@/lib/status/compute";
 import { getCooldownUntil } from "@/lib/status/cooldown";
@@ -92,6 +92,7 @@ function mapPostgresError(err: unknown): HttpError | null {
 export async function insertAction(
   input: ActionInsertInput,
   user: SessionUser,
+  requestDb: DbClient,
 ): Promise<ActionInsertResult> {
   if (
     input.contactType != null &&
@@ -116,7 +117,7 @@ export async function insertAction(
   const targetStatus = (input.payload?.target_status as string | undefined) ?? null;
 
   // Markt-Koordinaten & Stammdaten holen für Distanz- & Validierungsprüfung
-  const marketRows = await db
+  const marketRows = await requestDb
     .select({
       id: marketTable.id,
       lat: marketTable.lat,
@@ -181,10 +182,10 @@ export async function insertAction(
   const cooldownUntil =
     input.type === "manual_override"
       ? null
-      : await getCooldownUntil(input.type, input.result ?? null, db);
+      : await getCooldownUntil(input.type, input.result ?? null, requestDb);
 
   // Insert mit Advisory Lock im selben Client (gleicher Hash wie Trigger)
-  const client = await pool.connect();
+  const client = await requestDb.$client.connect();
   let computedFollowUpDueAt: Date | null = null;
   let isNoContact = currentMarket.noContact;
   const finalSalesStage = input.salesStage ?? currentMarket.salesStage;
@@ -424,7 +425,7 @@ export async function insertAction(
     await client.query("COMMIT");
 
     // NOTIFY nach commit
-    notifyMarketUpdated(input.marketId, resultingStatus).catch(() => {});
+    notifyMarketUpdated(input.marketId, resultingStatus, requestDb).catch(() => {});
 
     return {
       actionId,

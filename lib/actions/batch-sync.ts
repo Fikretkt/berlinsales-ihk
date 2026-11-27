@@ -135,6 +135,7 @@ export async function batchSyncActions(
           payload: a.payload,
         },
         user,
+        requestDb,
       );
       synced.push({
         client_id: a.client_id,

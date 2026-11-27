@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import type { SalesStage, FeedbackReason } from "@/lib/db/schema";
 
 export {
@@ -25,11 +25,12 @@ export interface FollowUpStats {
 
 export async function getFollowUpStats(
   companyId: string,
+  requestDb: DbClient,
   userId?: string,
 ): Promise<FollowUpStats> {
   const userFilter = userId ? sql`AND fu.user_id = ${userId}::uuid` : sql``;
 
-  const result = await db.execute<{
+  const result = await requestDb.execute<{
     overdue: string;
     today: string;
     this_week: string;
@@ -82,8 +83,9 @@ export interface SalesStageCount {
 
 export async function getSalesStageStats(
   companyId: string,
+  requestDb: DbClient
 ): Promise<Record<SalesStage, number>> {
-  const result = await db.execute<{ sales_stage: SalesStage; count: string }>(sql`
+  const result = await requestDb.execute<{ sales_stage: SalesStage; count: string }>(sql`
     SELECT sales_stage, COUNT(*)::text AS count
     FROM market
     WHERE company_id = ${companyId}::uuid AND active = TRUE AND merged_into_id IS NULL
@@ -110,8 +112,9 @@ export async function getSalesStageStats(
 
 export async function getFeedbackReasonStats(
   companyId: string,
+  requestDb: DbClient
 ): Promise<Record<FeedbackReason, number>> {
-  const result = await db.execute<{ feedback_reason: FeedbackReason; count: string }>(sql`
+  const result = await requestDb.execute<{ feedback_reason: FeedbackReason; count: string }>(sql`
     SELECT a.feedback_reason, COUNT(*)::text AS count
     FROM action a
     INNER JOIN market m ON m.id = a.market_id

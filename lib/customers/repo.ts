@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { auditLog, customer, user as userTable } from "@/lib/db/schema";
 import { AUDIT_EVENTS } from "@/lib/audit/events";
 import { HttpError, type SessionUser } from "@/lib/http/errors";
@@ -22,9 +22,9 @@ function visibility(user: SessionUser) {
     : and(eq(customer.companyId, user.companyId), eq(customer.assignedTo, user.id));
 }
 
-async function assignedCompany(id: string | null | undefined) {
+async function assignedCompany(id: string | null | undefined, requestDb: DbClient) {
   if (!id) return undefined;
-  const rows = await db.select({ companyId: userTable.companyId }).from(userTable).where(eq(userTable.id, id)).limit(1);
+  const rows = await requestDb.select({ companyId: userTable.companyId }).from(userTable).where(eq(userTable.id, id)).limit(1);
   if (!rows[0]) {
     throw new HttpError(400, "VALIDATION_FAILED", "Unbekannter zugewiesener Benutzer", {
       field: "assigned_to",
@@ -33,21 +33,21 @@ async function assignedCompany(id: string | null | undefined) {
   return rows[0];
 }
 
-export async function listCustomers(user: SessionUser, search?: string) {
+export async function listCustomers(user: SessionUser,requestDb: DbClient, search?: string,) {
   const conditions = [visibility(user)];
   if (search) conditions.push(ilike(customer.name, `%${search}%`));
-  return db.select().from(customer).where(and(...conditions)).orderBy(desc(customer.updatedAt));
+  return requestDb.select().from(customer).where(and(...conditions)).orderBy(desc(customer.updatedAt));
 }
 
-export async function getCustomer(id: string, user: SessionUser) {
-  const rows = await db.select().from(customer).where(and(eq(customer.id, id), visibility(user))).limit(1);
+export async function getCustomer(id: string, user: SessionUser, requestDb: DbClient) {
+  const rows = await requestDb.select().from(customer).where(and(eq(customer.id, id), visibility(user))).limit(1);
   return rows[0];
 }
 
-export async function createCustomer(input: CustomerInput, user: SessionUser) {
+export async function createCustomer(input: CustomerInput, user: SessionUser, requestDb: DbClient) {
   assertCustomerMutationAllowed(user, input);
-  assertAssignmentCompany(user, await assignedCompany(input.assignedTo));
-  const inserted = await db.transaction(async (tx) => {
+  assertAssignmentCompany(user, await assignedCompany(input.assignedTo, requestDb));
+  const inserted = await requestDb.transaction(async (tx) => {
     const rows = await tx.insert(customer).values({
       companyId: user.companyId,
       name: input.name!,
@@ -67,12 +67,12 @@ export async function createCustomer(input: CustomerInput, user: SessionUser) {
   return inserted;
 }
 
-export async function updateCustomer(id: string, input: CustomerInput, user: SessionUser) {
+export async function updateCustomer(id: string, input: CustomerInput, user: SessionUser, requestDb: DbClient) {
   assertCustomerMutationAllowed(user, input);
-  const existing = await getCustomer(id, user);
+  const existing = await getCustomer(id, user, requestDb);
   if (!existing) throw new HttpError(404, "CUSTOMER_NOT_FOUND", "Kunde nicht gefunden");
-  assertAssignmentCompany(user, await assignedCompany(input.assignedTo));
-  const updated = await db.transaction(async (tx) => {
+  assertAssignmentCompany(user, await assignedCompany(input.assignedTo, requestDb));
+  const updated = await requestDb.transaction(async (tx) => {
     const rows = await tx.update(customer).set({
       ...(input.name !== undefined && { name: input.name }),
       ...(input.address !== undefined && { address: input.address }),

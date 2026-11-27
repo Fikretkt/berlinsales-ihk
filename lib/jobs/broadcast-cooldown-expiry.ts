@@ -3,7 +3,7 @@
 // Läuft alle 5 Minuten.
 
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { notifyMarketsBulkUpdated } from "@/lib/sse/notify";
 
 export interface BroadcastCooldownResult {
@@ -13,12 +13,13 @@ export interface BroadcastCooldownResult {
 }
 
 export async function broadcastCooldownExpiry(
+  jobDb: DbClient,
   windowMinutes = 5,
 ): Promise<BroadcastCooldownResult> {
   const t0 = Date.now();
   // Markt-IDs deren letzte Action einen Cooldown hat, der innerhalb des
   // Zeitfensters abgelaufen ist UND keine neuere Action existiert.
-  const result = await db.execute<{ market_id: string }>(sql`
+  const result = await jobDb.execute<{ market_id: string }>(sql`
     SELECT DISTINCT a.market_id
     FROM action a
     WHERE a.cooldown_until BETWEEN NOW() - INTERVAL '${sql.raw(String(windowMinutes))} minutes' AND NOW()
@@ -29,7 +30,7 @@ export async function broadcastCooldownExpiry(
   `);
   const marketIds = result.rows.map((r) => r.market_id);
   if (marketIds.length > 0) {
-    await notifyMarketsBulkUpdated(marketIds);
+    await notifyMarketsBulkUpdated(marketIds, jobDb);
   }
   return { count: marketIds.length, marketIds, durationMs: Date.now() - t0 };
 }

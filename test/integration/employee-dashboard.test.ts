@@ -67,11 +67,11 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     // Canonical stage transition: mAlice2 -> kontaktiert, mBob -> interesse
     await insertAction(
       { marketId: mAlice2, type: "visit", contactType: "phone", result: "success", salesStage: "kontaktiert" },
-      aliceUser,
+      aliceUser, ctx.db,
     );
     await insertAction(
       { marketId: mBob, type: "visit", contactType: "visit", result: "success", salesStage: "interesse" },
-      bobUser,
+      bobUser, ctx.db,
     );
 
     const aliceDashboard = await getEmployeeTodayDashboard(companyId, aliceId);
@@ -100,6 +100,7 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     await insertAction(
       { marketId: mB, type: "visit", contactType: "visit", result: "success", salesStage: "angebot" },
       repB,
+      ctx.db,
     );
 
     // Dashboard for user A in company A
@@ -123,15 +124,15 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     // Set stages canonically via insertAction
     await insertAction(
       { marketId: marketOverdue, type: "visit", contactType: "visit", result: "success", salesStage: "interesse" },
-      repUser,
+      repUser, ctx.db,
     );
     await insertAction(
       { marketId: marketToday, type: "visit", contactType: "phone", result: "success", salesStage: "angebot" },
-      repUser,
+      repUser, ctx.db,
     );
     await insertAction(
       { marketId: marketFuture, type: "visit", contactType: "phone", result: "success", salesStage: "kontaktiert" },
-      repUser,
+      repUser, ctx.db,
     );
 
     const pastDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
@@ -195,6 +196,7 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     await insertAction(
       { marketId: mHigh, type: "visit", contactType: "visit", result: "success", interestLevel: "hoch" },
       repUser,
+      ctx.db,
     );
 
     // Market 2: assigned, interest mittel -> NOT high priority
@@ -202,6 +204,7 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     await insertAction(
       { marketId: mMid, type: "visit", contactType: "visit", result: "success", interestLevel: "mittel" },
       repUser,
+      ctx.db,
     );
 
     // Market 3: assigned, interest hoch, but marked never_contact -> MUST BE EXCLUDED
@@ -216,6 +219,7 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
         interestLevel: "hoch",
       },
       repUser,
+      ctx.db,
     );
 
     // Market 4: assigned, interest hoch, but stage = gewonnen -> MUST BE EXCLUDED
@@ -231,6 +235,7 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
         salesValue: 1000,
       },
       repUser,
+      ctx.db,
     );
 
     const dashboard = await getEmployeeTodayDashboard(companyId, repId);
@@ -258,18 +263,18 @@ describe("Sprint 007 — Employee Dashboard Integration Suite", () => {
     // User A: 1 visit on marketA1
     await insertAction(
       { marketId: marketA1, type: "visit", contactType: "visit", result: "success" },
-      repA,
+      repA, ctx.db,
     );
     // User A: 1 phone call transitioning to gewonnen on marketA2
     await insertAction(
       { marketId: marketA2, type: "visit", contactType: "phone", result: "success", salesStage: "gewonnen", salesValue: 500 },
-      repA,
+      repA, ctx.db,
     );
 
     // User B: 1 visit on marketB1
     await insertAction(
       { marketId: marketB1, type: "visit", contactType: "visit", result: "success" },
-      repB,
+      repB, ctx.db,
     );
 
     const dashA = await getEmployeeTodayDashboard(companyId, userA);

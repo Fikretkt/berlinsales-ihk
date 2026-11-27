@@ -3,8 +3,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { insertAction } from "@/lib/actions/insert";
-import { requireUser } from "@/lib/auth/session";
+import { HttpError, requireUser } from "@/lib/auth/session";
 import { ok, withErrorHandler, validationFailed } from "@/lib/http/response";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
 
 const ACTION_TYPES = [
   "visit",
@@ -65,7 +66,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+    if (!host) {
+      throw new HttpError(400, "HOST_REQUIRED", "Host fehlt");
+    }
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!z.string().uuid().safeParse(id).success) {
       return validationFailed("Ungültige Markt-ID");
@@ -89,6 +95,7 @@ export async function POST(
         payload: parsed.data.payload,
       },
       user,
+      requestDb,
     );
 
     return ok(

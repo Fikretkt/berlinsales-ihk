@@ -1,7 +1,7 @@
-// node-cron Scheduler — startet alle drei Jobs.
-// Wird in Production über scripts/jobs.ts gestartet, in Dev über ENABLE_CRON=true.
+// node-cron Scheduler — startet alle drei Jobs für beide Datenbanken.
 
 import cron from "node-cron";
+import { ersteDb, zweiteDb } from "@/lib/db/client";
 import { expireReservations } from "./expire-reservations";
 import { broadcastCooldownExpiry } from "./broadcast-cooldown-expiry";
 import { anonymizeOldGeo } from "./anonymize-old-geo";
@@ -12,45 +12,70 @@ export function startSchedulers(): void {
   if (started) return;
   started = true;
 
-  // Jede Minute
-  cron.schedule("* * * * *", async () => {
-    try {
-      const r = await expireReservations();
-      if (r.count > 0) {
-        console.log(`[cron] expire_reservations: ${r.count} markts in ${r.durationMs}ms`);
-      }
-    } catch (err) {
-      console.error("[cron] expire_reservations failed:", err);
-    }
-  });
+  const databases = [
+    { bereich: "internal", db: ersteDb },
+    { bereich: "external", db: zweiteDb },
+  ];
 
-  // Alle 5 Minuten
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      const r = await broadcastCooldownExpiry();
-      if (r.count > 0) {
-        console.log(`[cron] broadcast_cooldown_expiry: ${r.count} markts in ${r.durationMs}ms`);
-      }
-    } catch (err) {
-      console.error("[cron] broadcast_cooldown_expiry failed:", err);
-    }
-  });
-
-  // Täglich um 03:00 Berlin
-  cron.schedule(
-    "0 3 * * *",
-    async () => {
+  for (const { bereich, db } of databases) {
+    // Jede Minute
+    cron.schedule("* * * * *", async () => {
       try {
-        const r = await anonymizeOldGeo();
+        const r = await expireReservations(db);
+
         if (r.count > 0) {
-          console.log(`[cron] anonymize_old_geo: ${r.count} actions in ${r.durationMs}ms`);
+          console.log(
+            `[cron][${bereich}] expire_reservations: ${r.count} markets in ${r.durationMs}ms`,
+          );
         }
       } catch (err) {
-        console.error("[cron] anonymize_old_geo failed:", err);
+        console.error(
+          `[cron][${bereich}] expire_reservations failed:`,
+          err,
+        );
       }
-    },
-    { timezone: "Europe/Berlin" },
-  );
+    });
 
-  console.log("[cron] schedulers started: expire_reservations (1min), broadcast_cooldown_expiry (5min), anonymize_old_geo (täglich 03:00)");
+    // Alle 5 Minuten
+    cron.schedule("*/5 * * * *", async () => {
+      try {
+        const r = await broadcastCooldownExpiry(db);
+
+        if (r.count > 0) {
+          console.log(
+            `[cron][${bereich}] broadcast_cooldown_expiry: ${r.count} markets in ${r.durationMs}ms`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[cron][${bereich}] broadcast_cooldown_expiry failed:`,
+          err,
+        );
+      }
+    });
+
+    // Täglich um 03:00 Berlin
+    cron.schedule(
+      "0 3 * * *",
+      async () => {
+        try {
+          const r = await anonymizeOldGeo(db);
+
+          if (r.count > 0) {
+            console.log(
+              `[cron][${bereich}] anonymize_old_geo: ${r.count} actions in ${r.durationMs}ms`,
+            );
+          }
+        } catch (err) {
+          console.error(
+            `[cron][${bereich}] anonymize_old_geo failed:`,
+            err,
+          );
+        }
+      },
+      { timezone: "Europe/Berlin" },
+    );
+  }
+
+  console.log("[cron] schedulers started for internal and external databases");
 }

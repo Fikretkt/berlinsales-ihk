@@ -65,7 +65,7 @@ export async function createReservation(
         [marketId, user.id, validUntil],
       );
       await client.query("COMMIT");
-      notifyMarketUpdated(marketId, detail.market.computedStatus).catch(() => {});
+      notifyMarketUpdated(marketId, detail.market.computedStatus, requestDb).catch(() => {});
       return { reservationId: res.rows[0]!.id, validUntil };
     } catch (err) {
       await client.query("ROLLBACK");
@@ -128,7 +128,7 @@ export async function cancelReservation(
   // NOTIFY: status bleibt gleich, aber Reservation-Info ist weg → Frontend refetcht
   const after = await getMarketDetail(user.companyId, marketId, requestDb);
   if (after.kind === "ok") {
-    notifyMarketUpdated(marketId, after.market.computedStatus).catch(() => {});
+    notifyMarketUpdated(marketId, after.market.computedStatus, requestDb).catch(() => {});
   }
 
   return { cancelled: true };

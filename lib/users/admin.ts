@@ -1,7 +1,7 @@
 // Admin-User-Verwaltung: Liste, Einladung, Updates.
 
 import { and, sql, eq, desc } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import type { DbClient } from "@/lib/db/client";
 import { user as userTable, company as companyTable, auditLog } from "@/lib/db/schema";
 import { createToken } from "@/lib/auth/tokens";
 import { sendMail } from "@/lib/email/send";
@@ -23,8 +23,8 @@ export interface AdminUserListItem {
   companyName: string;
 }
 
-export async function listUsers(admin: SessionUser): Promise<AdminUserListItem[]> {
-  const rows = await db
+export async function listUsers(admin: SessionUser, requestDb: DbClient): Promise<AdminUserListItem[]> {
+  const rows = await requestDb
     .select({
       id: userTable.id,
       email: userTable.email,
@@ -55,8 +55,8 @@ export async function listUsers(admin: SessionUser): Promise<AdminUserListItem[]
   }));
 }
 
-export async function listCompanies(admin: SessionUser) {
-  return db
+export async function listCompanies(admin: SessionUser, requestDb: DbClient) {
+  return requestDb
     .select({ id: companyTable.id, name: companyTable.name })
     .from(companyTable)
     .where(eq(companyTable.id, admin.companyId))
@@ -72,9 +72,10 @@ export interface InviteUserInput {
 export async function inviteUser(
   input: InviteUserInput,
   inviter: SessionUser,
+  requestDb: DbClient,
 ): Promise<{ userId: string; emailSent: boolean; emailError?: string }> {
   // Email darf noch nicht existieren
-  const existing = await db
+  const existing = await requestDb
     .select({ id: userTable.id })
     .from(userTable)
     .where(eq(userTable.email, input.email.toLowerCase()))
@@ -83,7 +84,7 @@ export async function inviteUser(
     throw new HttpError(409, "USER_EXISTS", "Diese E-Mail ist schon vergeben");
   }
 
-  const newUserId = await db.transaction(async (tx) => {
+  const newUserId = await requestDb.transaction(async (tx) => {
     const res = await tx
       .insert(userTable)
       .values({
@@ -98,7 +99,7 @@ export async function inviteUser(
     return res[0]!.id;
   });
 
-  const { rawToken } = await createToken(db, newUserId, "setup");
+  const { rawToken } = await createToken(requestDb, newUserId, "setup");
   const baseUrl = process.env.AUTH_URL ?? "http://localhost:3000";
   const setupUrl = `${baseUrl}/auth/setup?token=${encodeURIComponent(rawToken)}`;
   const tpl = setupInvitation({
@@ -108,7 +109,7 @@ export async function inviteUser(
   });
   const mailRes = await sendMail({ to: input.email, ...tpl });
 
-  await db.insert(auditLog).values({
+  await requestDb.insert(auditLog).values({
     companyId: inviter.companyId,
     userId: inviter.id,
     event: mailRes.ok
@@ -138,8 +139,9 @@ export async function updateUser(
   id: string,
   input: UpdateUserInput,
   admin: SessionUser,
+  requestDb: DbClient,
 ): Promise<void> {
-  const existing = await db
+  const existing = await requestDb
     .select({
       id: userTable.id,
       role: userTable.role,
@@ -161,7 +163,7 @@ export async function updateUser(
 
   if (Object.keys(updates).length === 0) return;
 
-  await db.transaction(async (tx) => {
+  await requestDb.transaction(async (tx) => {
     await tx
       .update(userTable)
       .set(updates)
@@ -190,8 +192,9 @@ export async function updateUser(
 export async function resendInvitation(
   id: string,
   inviter: SessionUser,
+  requestDb: DbClient
 ): Promise<{ emailSent: boolean; emailError?: string }> {
-  const rows = await db
+  const rows = await requestDb
     .select({
       id: userTable.id,
       email: userTable.email,
@@ -214,13 +217,13 @@ export async function resendInvitation(
   }
 
   // Alte Setup-Tokens invalidieren
-  await db.execute(sql`
+  await requestDb.execute(sql`
     UPDATE password_reset_token
     SET consumed_at = NOW()
     WHERE user_id = ${id}::uuid AND purpose = 'setup' AND consumed_at IS NULL
   `);
 
-  const { rawToken } = await createToken(db, id, "setup");
+  const { rawToken } = await createToken(requestDb, id, "setup");
   const baseUrl = process.env.AUTH_URL ?? "http://localhost:3000";
   const setupUrl = `${baseUrl}/auth/setup?token=${encodeURIComponent(rawToken)}`;
   const tpl = setupInvitation({
@@ -230,7 +233,7 @@ export async function resendInvitation(
   });
   const mailRes = await sendMail({ to: u.email, ...tpl });
 
-  await db.insert(auditLog).values({
+  await requestDb.insert(auditLog).values({
     companyId: inviter.companyId,
     userId: inviter.id,
     event: AUDIT_EVENTS.USER_INVITATION_RESENT,

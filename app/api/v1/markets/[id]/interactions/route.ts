@@ -10,6 +10,8 @@ import {
   feedbackReasonSchema,
   followUpInputSchema,
 } from "@/lib/sales/types";
+import { hostDbAuswahl } from "@/lib/db/dbAuswahl";
+import { HttpError } from "@/lib/http/errors";
 
 const idSchema = z.string().uuid();
 const bodySchema = z.object({
@@ -28,7 +30,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   return withErrorHandler(async () => {
-    const user = await requireUser();
+    const host = req.headers.get("host");
+    if (!host) throw new HttpError(400, "Host_Required", "Host fehlt");
+    const requestDb = hostDbAuswahl(host);
+    const user = await requireUser(requestDb);
     const { id } = await params;
     if (!idSchema.safeParse(id).success) return validationFailed("Ungültige Markt-ID");
     const body = await req.json().catch(() => null);
@@ -52,6 +57,7 @@ export async function POST(
         followUpDueAt: parsed.data.follow_up?.due_at ?? null,
       },
       user,
+      requestDb,
     );
 
     return ok(
